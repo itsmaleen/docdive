@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	pb "github.com/itsmaleen/tech-doc-processor/proto/tfidf"
+	pb "github.com/itsmaleen/tech-doc-processor/tfidf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

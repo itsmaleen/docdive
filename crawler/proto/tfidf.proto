@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package tfidf;
 
+option go_package = "proto/tfidf";
+
 service TFIDFService {
   rpc CleanText (CleanTextRequest) returns (CleanTextResponse) {}
   rpc GetTopTerms (TopTermsRequest) returns (TopTermsResponse) {}
