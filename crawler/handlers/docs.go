@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	pb "github.com/itsmaleen/tech-doc-processor/proto/tfidf"
+
 	"github.com/google/uuid"
 	"github.com/itsmaleen/tech-doc-processor/helpers"
 	"github.com/jackc/pgx/v5"
@@ -214,5 +216,123 @@ func HandleUnScrapedUrls(logger *log.Logger, pgxConn *pgxpool.Pool, firecrawlCli
 		}
 
 		helpers.Encode(w, r, http.StatusOK, pages)
+	}
+}
+
+func HandleCategorizeScrapedPages(logger *log.Logger, pgxConn *pgxpool.Pool, tfidfServiceClient pb.TFIDFServiceClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		logger.Printf("Categorizing scraped pages")
+
+		ctx := r.Context()
+
+		// Get all pages that are not categorized
+		rows, err := pgxConn.Query(ctx, `
+			SELECT pages.id, urls.url, pages.html_content, pages.markdown_content 
+			FROM pages
+			JOIN urls ON pages.url_id = urls.id
+			LEFT JOIN page_categories ON pages.id = page_categories.page_id 
+			WHERE page_categories.category_id IS NULL
+		`)
+		if err != nil {
+			log.Printf("Failed to get unclassified pages: %v", err)
+			http.Error(w, "Failed to get unclassified pages", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		type PageQuery struct {
+			ID              int    `json:"id"`
+			URL             string `json:"url"`
+			HTMLContent     string `json:"html_content"`
+			MarkdownContent string `json:"markdown_content"`
+		}
+		// Read the rows
+		var pages []PageQuery
+		for rows.Next() {
+			var page PageQuery
+			err = rows.Scan(&page.ID, &page.URL, &page.HTMLContent, &page.MarkdownContent)
+			if err != nil {
+				log.Printf("Failed to scan page: %v", err)
+				continue
+			}
+			pages = append(pages, page)
+		}
+
+		logger.Printf("Found %d pages to categorize", len(pages))
+
+		type PageTopics struct {
+			PageID        int                     `json:"page_id"`
+			URL           string                  `json:"url"`
+			HTMLContent   string                  `json:"html_content"`
+			CleanedText   string                  `json:"cleaned_text"`
+			TermClusters  map[int32]*pb.TermGroup `json:"term_clusters"`
+			CoOccurrences []*pb.TermPair          `json:"co_occurrences"`
+			TopicClusters []*pb.DocumentTerms     `json:"topic_clusters"`
+		}
+
+		var pageTopicsList []PageTopics
+
+		// Categorize the pages
+		for _, page := range pages {
+			var pageTopics PageTopics
+			pageTopics.PageID = page.ID
+			pageTopics.URL = page.URL
+			pageTopics.HTMLContent = page.HTMLContent
+
+			// Start by preprocessing the page content
+			markdownContent := page.MarkdownContent
+			cleanedText, err := tfidfServiceClient.CleanText(ctx, &pb.CleanTextRequest{
+				Text: markdownContent,
+			})
+			if err != nil {
+				log.Printf("Failed to clean text: %v", err)
+				continue
+			}
+			pageTopics.CleanedText = cleanedText.CleanedText
+
+			// TF-IDF to identify significant terms across documents
+			termClusters, err := tfidfServiceClient.GetTermClusters(ctx, &pb.TermClustersRequest{
+				Documents: []string{cleanedText.CleanedText},
+				NClusters: 5,
+			})
+			if err != nil {
+				log.Printf("Failed to get term clusters: %v", err)
+				continue
+			}
+			pageTopics.TermClusters = termClusters.Clusters
+
+			// Co-occurrence to identify relationships between terms
+			coOccurrences, err := tfidfServiceClient.GetCoOccurrences(ctx, &pb.CoOccurrenceRequest{
+				Documents:  []string{cleanedText.CleanedText},
+				WindowSize: 5,
+				TopN:       10,
+			})
+			if err != nil {
+				log.Printf("Failed to get co-occurrences: %v", err)
+				continue
+			}
+			pageTopics.CoOccurrences = coOccurrences.Pairs
+
+			// Cluster topics
+			topicClusters, err := tfidfServiceClient.GetTopTerms(ctx, &pb.TopTermsRequest{
+				Documents:   []string{cleanedText.CleanedText},
+				MaxFeatures: 100,
+				TopN:        10,
+			})
+			if err != nil {
+				log.Printf("Failed to get topic clusters: %v", err)
+				continue
+			}
+			pageTopics.TopicClusters = topicClusters.Documents
+
+			pageTopicsList = append(pageTopicsList, pageTopics)
+		}
+
+		helpers.Encode(w, r, http.StatusOK, pageTopicsList)
 	}
 }

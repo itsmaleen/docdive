@@ -64,11 +64,11 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 	}
 
 	// check if postgres is ready
-	err = pgsqlConnection.Ping(ctx)
-	if err != nil {
-		l.Printf("error pinging postgres: %v\n", err)
-		return err
-	}
+	// err = pgsqlConnection.Ping(ctx)
+	// if err != nil {
+	// 	l.Printf("error pinging postgres: %v\n", err)
+	// 	return err
+	// }
 
 	if getenv("FIRECRAWL_API_KEY") == "" {
 		return fmt.Errorf("FIRECRAWL_API_KEY must be set")
@@ -81,7 +81,17 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 		return err
 	}
 
-	srv := Server(l, pgsqlConnection, firecrawlClient)
+	if getenv("TFIDF_HOST") == "" {
+		return fmt.Errorf("TFIDF_HOST must be set")
+	}
+
+	tfidfService, err := NewTFIDFService(getenv("TFIDF_HOST"))
+	if err != nil {
+		log.Fatalf("Failed to create TFIDF service: %v", err)
+	}
+	defer tfidfService.Close()
+
+	srv := Server(l, pgsqlConnection, firecrawlClient, tfidfService.client)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("0.0.0.0", "8080"),

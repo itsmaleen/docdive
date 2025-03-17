@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 
-	pb "github.com/itsmaleen/tech-doc-processor/tfidf"
+	pb "github.com/itsmaleen/tech-doc-processor/proto/tfidf"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -16,7 +17,7 @@ type TFIDFService struct {
 
 // NewTFIDFService creates a new TFIDF service instance
 func NewTFIDFService(address string) (*TFIDFService, error) {
-	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
