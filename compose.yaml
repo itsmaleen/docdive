@@ -8,6 +8,7 @@ services:
       - .env
     depends_on:
       - tfidf-service
+      - rag-service
     develop:
       watch:
         - path: crawler
@@ -30,3 +31,23 @@ services:
       context: tfidf
       dockerfile: Dockerfile.test
     container_name: tfidf-test
+
+  rag-service:
+    build:
+      context: rag
+      dockerfile: Dockerfile
+    container_name: rag-service
+    ports:
+      - "50052:50052"
+    env_file:
+      - .env
+    develop:
+      watch:
+        - path: rag
+          action: rebuild
+
+  rag-test:
+    build:
+      context: rag
+      dockerfile: Dockerfile.test
+    container_name: rag-test

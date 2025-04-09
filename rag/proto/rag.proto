@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package rag;
+
+service RAGService {
+  // Text splitting methods
+  rpc SplitTextFixedSize (SplitTextRequest) returns (SplitTextResponse) {}
+  rpc SplitTextSentences (SplitTextRequest) returns (SplitTextResponse) {}
+  rpc SplitTextParagraphs (SplitTextRequest) returns (SplitTextResponse) {}
+  rpc SplitTextContextAware (SplitTextRequest) returns (SplitTextResponse) {}
+  
+  // Embedding generation methods
+  rpc GenerateEmbeddingsSentenceTransformers (EmbeddingRequest) returns (EmbeddingResponse) {}
+  rpc GenerateEmbeddingsOpenAI (EmbeddingRequest) returns (EmbeddingResponse) {}
+  rpc GenerateEmbeddingsGemini (EmbeddingRequest) returns (EmbeddingResponse) {}
+
+message SplitTextRequest {
+  string text = 1;
+  int32 chunk_size = 2;  // For fixed-size chunks
+  int32 overlap = 3;     // Optional overlap between chunks
+}
+
+message SplitTextResponse {
+  repeated TextChunk chunks = 1;
+}
+
+message TextChunk {
+  string text = 1;
+  int32 start_index = 2;
+  int32 end_index = 3;
+}
+
+message EmbeddingRequest {
+  repeated string texts = 1;
+  string model = 2;  // Model name/identifier
+}
+
+message EmbeddingResponse {
+  repeated Embedding embeddings = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+  int32 dimension = 2;
+} 

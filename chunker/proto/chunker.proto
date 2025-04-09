@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package chunker;
+
+service ChunkingService {
+  // Process URLs and return chunks
+  rpc ProcessUrls (ProcessUrlsRequest) returns (ProcessUrlsResponse) {}
+  
+  // Process a single document and return chunks
+  rpc ProcessDocument (ProcessDocumentRequest) returns (ProcessDocumentResponse) {}
+}
+
+message ProcessUrlsRequest {
+  repeated string urls = 1;
+  ChunkingConfig config = 2;
+}
+
+message ProcessDocumentRequest {
+  string text = 1;
+  string source_url = 2;
+  ChunkingConfig config = 3;
+}
+
+message ChunkingConfig {
+  int32 md_chunk_size = 1;
+  int32 md_chunk_overlap = 2;
+  int32 semantic_chunk_size = 3;
+  string semantic_breakpoint_threshold_type = 4;
+  float semantic_breakpoint_threshold_amount = 5;
+  string embedding_model_name = 6;
+}
+
+message ProcessUrlsResponse {
+  repeated DocumentChunk chunks = 1;
+}
+
+message ProcessDocumentResponse {
+  repeated DocumentChunk chunks = 1;
+}
+
+message DocumentChunk {
+  string content = 1;
+  string source_url = 2;
+  int32 part = 3;
+  map<string, string> metadata = 4;
+} 
