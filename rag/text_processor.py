@@ -1,11 +1,11 @@
 from typing import List, Tuple
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
-from sentence_transformers import SentenceTransformer
 import openai
 from dataclasses import dataclass
 import re
 from google import genai
+from google.genai import types
 
 
 @dataclass
@@ -29,9 +29,6 @@ class TextProcessor:
             nltk.data.find("tokenizers/punkt")
         except LookupError:
             nltk.download("punkt")
-
-        # Initialize sentence transformer model
-        self.sentence_transformer = SentenceTransformer("all-mpnet-base-v2")
 
     def split_text_fixed_size(
         self, text: str, chunk_size: int = 200, overlap: int = 0
@@ -130,13 +127,6 @@ class TextProcessor:
 
         return chunks
 
-    def generate_embeddings_sentence_transformers(
-        self, texts: List[str]
-    ) -> List[List[float]]:
-        """Generate embeddings using Sentence Transformers."""
-        embeddings = self.sentence_transformer.encode(texts)
-        return embeddings.tolist()
-
     def generate_embeddings_openai(
         self, texts: List[str], model: str = "text-embedding-ada-002"
     ) -> List[List[float]]:
@@ -168,6 +158,7 @@ class TextProcessor:
             result = client.models.embed_content(
                 model=model,
                 contents=text,
+                config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY"),
             )
             embeddings.append(result.embeddings)
 

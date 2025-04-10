@@ -66,20 +66,6 @@ def test_split_text_context_aware(stub):
     assert response.chunks[0].start_index == 0
 
 
-def test_generate_embeddings_sentence_transformers(stub):
-    request = rag_pb2.EmbeddingRequest(
-        texts=["This is a test sentence.", "This is another test sentence."],
-        model="all-mpnet-base-v2",
-    )
-    response = stub.GenerateEmbeddingsSentenceTransformers(request)
-    assert len(response.embeddings) == 2
-    assert all(len(embedding.values) > 0 for embedding in response.embeddings)
-    assert all(
-        embedding.dimension == len(embedding.values)
-        for embedding in response.embeddings
-    )
-
-
 def test_generate_embeddings_openai(stub):
     request = rag_pb2.EmbeddingRequest(
         texts=["This is a test sentence.", "This is another test sentence."],
@@ -106,5 +92,5 @@ def test_invalid_requests(stub):
     # Test empty texts list for embeddings
     request = rag_pb2.EmbeddingRequest(texts=[], model="test")
     with pytest.raises(grpc.RpcError) as exc_info:
-        stub.GenerateEmbeddingsSentenceTransformers(request)
+        stub.GenerateEmbeddingsOpenAI(request)
     assert exc_info.value.code() == grpc.StatusCode.INVALID_ARGUMENT

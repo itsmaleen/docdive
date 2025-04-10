@@ -10,9 +10,9 @@ service RAGService {
   rpc SplitTextContextAware (SplitTextRequest) returns (SplitTextResponse) {}
   
   // Embedding generation methods
-  rpc GenerateEmbeddingsSentenceTransformers (EmbeddingRequest) returns (EmbeddingResponse) {}
   rpc GenerateEmbeddingsOpenAI (EmbeddingRequest) returns (EmbeddingResponse) {}
   rpc GenerateEmbeddingsGemini (EmbeddingRequest) returns (EmbeddingResponse) {}
+}
 
 message SplitTextRequest {
   string text = 1;

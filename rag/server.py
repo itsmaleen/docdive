@@ -95,22 +95,6 @@ class RAGServicer(rag_pb2_grpc.RAGServiceServicer):
             ]
         )
 
-    def GenerateEmbeddingsSentenceTransformers(self, request, context):
-        if not request.texts:
-            context.abort(
-                grpc.StatusCode.INVALID_ARGUMENT, "Texts list cannot be empty"
-            )
-
-        embeddings = self.processor.generate_embeddings_sentence_transformers(
-            request.texts
-        )
-        return rag_pb2.EmbeddingResponse(
-            embeddings=[
-                rag_pb2.Embedding(values=embedding, dimension=len(embedding))
-                for embedding in embeddings
-            ]
-        )
-
     def GenerateEmbeddingsOpenAI(self, request, context):
         if not request.texts:
             context.abort(
