@@ -1,0 +1,12 @@
+services:
+  docdive-server:
+    build: main
+    container_name: standalone
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    develop:
+      watch:
+        - path: main
+          action: rebuild
