@@ -1,53 +1,25 @@
 services:
-  doc-processor:
-    build: crawler
-    container_name: doc-processor
+  docdive-server:
+    build: main
+    container_name: standalone
     ports:
       - "8080:8080"
     env_file:
       - .env
-    depends_on:
-      - tfidf-service
-      - rag-service
     develop:
       watch:
-        - path: crawler
+        - path: main
           action: rebuild
-
-  tfidf-service:
+  rag-tools:
     build:
-      context: tfidf
+      context: rag-tools
       dockerfile: Dockerfile
-    container_name: tfidf-service
+    container_name: rag-tools
     ports:
       - "50051:50051"
-    develop:
-      watch:
-        - path: tfidf
-          action: rebuild
-
-  tfidf-test:
-    build:
-      context: tfidf
-      dockerfile: Dockerfile.test
-    container_name: tfidf-test
-
-  rag-service:
-    build:
-      context: rag
-      dockerfile: Dockerfile
-    container_name: rag-service
-    ports:
-      - "50052:50052"
     env_file:
       - .env
     develop:
       watch:
-        - path: rag
+        - path: rag-tools
           action: rebuild
-
-  rag-test:
-    build:
-      context: rag
-      dockerfile: Dockerfile.test
-    container_name: rag-test
