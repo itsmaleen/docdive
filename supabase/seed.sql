@@ -295,4 +295,3 @@ INSERT INTO urls (url, source_id) VALUES ('http://docs.recall.ai/reference/bot_s
 INSERT INTO urls (url, source_id) VALUES ('http://docs.recall.ai/reference/email-receiving', 1);
 INSERT INTO urls (url, source_id) VALUES ('http://docs.recall.ai/docs/slack-huddle-bots-overview', 1);
 
-
