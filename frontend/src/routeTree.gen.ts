@@ -10,166 +10,166 @@
 
 // Import Routes
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as LoadingImport } from './routes/loading'
-import { Route as IndexImport } from './routes/index'
-import { Route as DocsUrlImport } from './routes/docs.$url'
-import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
-import { Route as DemoStoreImport } from './routes/demo.store'
-import { Route as DemoClerkImport } from './routes/demo.clerk'
+import { Route as rootRoute } from "./routes/__root";
+import { Route as LoadingImport } from "./routes/loading";
+import { Route as IndexImport } from "./routes/index";
+import { Route as DocsUrlImport } from "./routes/docs.$url";
+import { Route as DemoTanstackQueryImport } from "./routes/demo.tanstack-query";
+import { Route as DemoStoreImport } from "./routes/demo.store";
+import { Route as DemoClerkImport } from "./routes/demo.clerk";
 
 // Create/Update Routes
 
 const LoadingRoute = LoadingImport.update({
-  id: '/loading',
-  path: '/loading',
+  id: "/loading",
+  path: "/loading",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const DocsUrlRoute = DocsUrlImport.update({
-  id: '/docs/$url',
-  path: '/docs/$url',
+  id: "/docs/$url",
+  path: "/docs/$url",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const DemoTanstackQueryRoute = DemoTanstackQueryImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
+  id: "/demo/tanstack-query",
+  path: "/demo/tanstack-query",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const DemoStoreRoute = DemoStoreImport.update({
-  id: '/demo/store',
-  path: '/demo/store',
+  id: "/demo/store",
+  path: "/demo/store",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 const DemoClerkRoute = DemoClerkImport.update({
-  id: '/demo/clerk',
-  path: '/demo/clerk',
+  id: "/demo/clerk",
+  path: "/demo/clerk",
   getParentRoute: () => rootRoute,
-} as any)
+} as any);
 
 // Populate the FileRoutesByPath interface
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/loading': {
-      id: '/loading'
-      path: '/loading'
-      fullPath: '/loading'
-      preLoaderRoute: typeof LoadingImport
-      parentRoute: typeof rootRoute
-    }
-    '/demo/clerk': {
-      id: '/demo/clerk'
-      path: '/demo/clerk'
-      fullPath: '/demo/clerk'
-      preLoaderRoute: typeof DemoClerkImport
-      parentRoute: typeof rootRoute
-    }
-    '/demo/store': {
-      id: '/demo/store'
-      path: '/demo/store'
-      fullPath: '/demo/store'
-      preLoaderRoute: typeof DemoStoreImport
-      parentRoute: typeof rootRoute
-    }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryImport
-      parentRoute: typeof rootRoute
-    }
-    '/docs/$url': {
-      id: '/docs/$url'
-      path: '/docs/$url'
-      fullPath: '/docs/$url'
-      preLoaderRoute: typeof DocsUrlImport
-      parentRoute: typeof rootRoute
-    }
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/loading": {
+      id: "/loading";
+      path: "/loading";
+      fullPath: "/loading";
+      preLoaderRoute: typeof LoadingImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/demo/clerk": {
+      id: "/demo/clerk";
+      path: "/demo/clerk";
+      fullPath: "/demo/clerk";
+      preLoaderRoute: typeof DemoClerkImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/demo/store": {
+      id: "/demo/store";
+      path: "/demo/store";
+      fullPath: "/demo/store";
+      preLoaderRoute: typeof DemoStoreImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/demo/tanstack-query": {
+      id: "/demo/tanstack-query";
+      path: "/demo/tanstack-query";
+      fullPath: "/demo/tanstack-query";
+      preLoaderRoute: typeof DemoTanstackQueryImport;
+      parentRoute: typeof rootRoute;
+    };
+    "/docs/$url": {
+      id: "/docs/$url";
+      path: "/docs/$url";
+      fullPath: "/docs/$url";
+      preLoaderRoute: typeof DocsUrlImport;
+      parentRoute: typeof rootRoute;
+    };
   }
 }
 
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/loading': typeof LoadingRoute
-  '/demo/clerk': typeof DemoClerkRoute
-  '/demo/store': typeof DemoStoreRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/docs/$url': typeof DocsUrlRoute
+  "/": typeof IndexRoute;
+  "/loading": typeof LoadingRoute;
+  "/demo/clerk": typeof DemoClerkRoute;
+  "/demo/store": typeof DemoStoreRoute;
+  "/demo/tanstack-query": typeof DemoTanstackQueryRoute;
+  "/docs/$url": typeof DocsUrlRoute;
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/loading': typeof LoadingRoute
-  '/demo/clerk': typeof DemoClerkRoute
-  '/demo/store': typeof DemoStoreRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/docs/$url': typeof DocsUrlRoute
+  "/": typeof IndexRoute;
+  "/loading": typeof LoadingRoute;
+  "/demo/clerk": typeof DemoClerkRoute;
+  "/demo/store": typeof DemoStoreRoute;
+  "/demo/tanstack-query": typeof DemoTanstackQueryRoute;
+  "/docs/$url": typeof DocsUrlRoute;
 }
 
 export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/loading': typeof LoadingRoute
-  '/demo/clerk': typeof DemoClerkRoute
-  '/demo/store': typeof DemoStoreRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/docs/$url': typeof DocsUrlRoute
+  __root__: typeof rootRoute;
+  "/": typeof IndexRoute;
+  "/loading": typeof LoadingRoute;
+  "/demo/clerk": typeof DemoClerkRoute;
+  "/demo/store": typeof DemoStoreRoute;
+  "/demo/tanstack-query": typeof DemoTanstackQueryRoute;
+  "/docs/$url": typeof DocsUrlRoute;
 }
 
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/loading'
-    | '/demo/clerk'
-    | '/demo/store'
-    | '/demo/tanstack-query'
-    | '/docs/$url'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/loading"
+    | "/demo/clerk"
+    | "/demo/store"
+    | "/demo/tanstack-query"
+    | "/docs/$url";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
-    | '/loading'
-    | '/demo/clerk'
-    | '/demo/store'
-    | '/demo/tanstack-query'
-    | '/docs/$url'
+    | "/"
+    | "/loading"
+    | "/demo/clerk"
+    | "/demo/store"
+    | "/demo/tanstack-query"
+    | "/docs/$url";
   id:
-    | '__root__'
-    | '/'
-    | '/loading'
-    | '/demo/clerk'
-    | '/demo/store'
-    | '/demo/tanstack-query'
-    | '/docs/$url'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/"
+    | "/loading"
+    | "/demo/clerk"
+    | "/demo/store"
+    | "/demo/tanstack-query"
+    | "/docs/$url";
+  fileRoutesById: FileRoutesById;
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  LoadingRoute: typeof LoadingRoute
-  DemoClerkRoute: typeof DemoClerkRoute
-  DemoStoreRoute: typeof DemoStoreRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
-  DocsUrlRoute: typeof DocsUrlRoute
+  IndexRoute: typeof IndexRoute;
+  LoadingRoute: typeof LoadingRoute;
+  DemoClerkRoute: typeof DemoClerkRoute;
+  DemoStoreRoute: typeof DemoStoreRoute;
+  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute;
+  DocsUrlRoute: typeof DocsUrlRoute;
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -179,11 +179,11 @@ const rootRouteChildren: RootRouteChildren = {
   DemoStoreRoute: DemoStoreRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DocsUrlRoute: DocsUrlRoute,
-}
+};
 
 export const routeTree = rootRoute
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
 /* ROUTE_MANIFEST_START
 {
