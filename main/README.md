@@ -14,3 +14,6 @@ docker compose watch
 ```
 ngrok http --url=blindly-enormous-liger.ngrok-free.app 8080
 ```
+
+## View Gemini Billing
+https://aistudio.google.com/app/plan_information

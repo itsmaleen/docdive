@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
+
+	pb "github.com/itsmaleen/tech-doc-processor/proto/rag-tools"
+
+	"github.com/itsmaleen/tech-doc-processor/helpers"
 )
 
 // SitemapIndex represents the structure of a sitemap index file
@@ -324,7 +329,8 @@ func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool
 
 		// Update the pages table with the new markdown content
 		for id, markdownContent := range markdownContents {
-			_, err = pgxConn.Exec(r.Context(), "UPDATE pages SET markdown_content = $1 WHERE id = $2", markdownContent, id)
+			cleanedMarkdownContent := CleanMarkdown(markdownContent)
+			_, err = pgxConn.Exec(r.Context(), "UPDATE pages SET markdown_content = $1 WHERE id = $2", cleanedMarkdownContent, id)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to update page %d: %v", id, err), http.StatusInternalServerError)
 				return
@@ -333,7 +339,257 @@ func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool
 
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Successfully updated %d URLs", len(markdownContents))
+	}
+}
 
+type ChunkMetadata struct {
+	SourceURL string   `json:"source_url"`
+	ChunkPath []string `json:"chunk_path"`
+	HasCode   bool     `json:"has_code"`
+	Text      string   `json:"text"`
+	Index     int      `json:"index"`
+}
+
+type Chunk struct {
+	ID        int           `json:"id"`
+	PageID    int           `json:"page_id"`
+	Text      string        `json:"text"`
+	Embedding []float32     `json:"vector_embedding"`
+	Metadata  ChunkMetadata `json:"metadata"`
+	CreatedAt time.Time     `json:"created_at"`
+}
+
+func HandleChunkingUnProcessedPages(logger *log.Logger, pgxConn *pgxpool.Pool, ragToolsServiceClient pb.MarkdownChunkerServiceClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow POST requests
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Get values from urls table where markdown_content is null
+		rows, err := pgxConn.Query(r.Context(), "SELECT pages.id, markdown_content, url FROM pages JOIN urls ON pages.url_id = urls.id WHERE processed_at IS NULL")
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to query URLs: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var chunksToWrite []Chunk
+
+		for rows.Next() {
+			var id int
+			var markdownContent string
+			var url string
+			err = rows.Scan(&id, &markdownContent, &url)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to scan URL: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			chunks, err := ragToolsServiceClient.ChunkMarkdown(r.Context(), &pb.ChunkMarkdownRequest{
+				Content:   markdownContent,
+				ChunkSize: 1000,
+				Overlap:   200,
+			})
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to chunk markdown: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			for i, chunk := range chunks.Chunks {
+				chunkPath := GetMarkdownPath(logger, markdownContent, chunk)
+				logger.Printf("Chunk path: %v", chunkPath)
+
+				chunksToWrite = append(chunksToWrite, Chunk{
+					PageID: id,
+					Text:   chunk,
+					Metadata: ChunkMetadata{
+						SourceURL: url,
+						ChunkPath: chunkPath,
+						HasCode:   ChunkHasCode(chunk),
+						Text:      chunk,
+						Index:     i,
+					},
+					CreatedAt: time.Now(),
+				})
+			}
+
+			// logger.Printf("Successfully chunked markdown: %s into %d chunks\n\n%s\n\n", url, len(chunks.Chunks), strings.Join(chunks.Chunks, "\n\n"))
+			logger.Printf("Successfully chunked markdown: %s originally %d bytes into %d chunks\n\n", url, len(markdownContent), len(chunks.Chunks))
+		}
+
+		// Write the chunks to the database
+		for _, chunk := range chunksToWrite {
+			_, err = pgxConn.Exec(r.Context(), "INSERT INTO chunks (page_id, text, metadata, created_at) VALUES ($1, $2, $3, $4)", chunk.PageID, chunk.Text, chunk.Metadata, chunk.CreatedAt)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to insert chunk: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Successfully chunked and wrote %d chunks", len(chunksToWrite))
+	}
+}
+
+func HandleSaveEmbeddings(logger *log.Logger, pgxConn *pgxpool.Pool, geminiApiKey string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow POST requests
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		logger.Println("Generating embeddings for chunks")
+
+		// Get chunks from database where vector_embedding is null
+		rows, err := pgxConn.Query(r.Context(), "SELECT id, text FROM chunks WHERE vector_embedding IS NULL")
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to query chunks: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		totalRows := 0
+
+		for rows.Next() {
+			var id int
+			var text string
+			err = rows.Scan(&id, &text)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to scan chunk: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			logger.Printf("Generating embedding for chunk %d", id)
+
+			embedding, err := helpers.GenerateGeminiEmbedding(geminiApiKey, text, "gemini-embedding-exp-03-07", helpers.TaskTypeRetrievalDocument)
+			if err != nil {
+				if strings.Contains(err.Error(), "429") {
+					logger.Printf("Rate limit exceeded, sleeping for 60 seconds before retrying chunk %d", id)
+					time.Sleep(60 * time.Second)
+
+					// Retry the same chunk after waiting
+					embedding, err = helpers.GenerateGeminiEmbedding(geminiApiKey, text, "gemini-embedding-exp-03-07", helpers.TaskTypeRetrievalDocument)
+					if err != nil {
+						logger.Printf("Failed to generate embedding after retry: %v", err)
+						http.Error(w, fmt.Sprintf("Failed to generate embedding after retry: %v", err), http.StatusInternalServerError)
+						return
+					}
+				} else {
+					http.Error(w, fmt.Sprintf("Failed to generate embedding: %v", err), http.StatusInternalServerError)
+					return
+				}
+			}
+
+			// Convert []float32 to a string in PostgreSQL vector format
+			vectorStr := "["
+			for i, v := range embedding {
+				if i > 0 {
+					vectorStr += ","
+				}
+				vectorStr += fmt.Sprintf("%f", v)
+			}
+			vectorStr += "]"
+
+			_, err = pgxConn.Exec(r.Context(), "UPDATE chunks SET vector_embedding = $1::vector WHERE id = $2", vectorStr, id)
+			if err != nil {
+				logger.Printf("Failed to update chunk %d with error: %v", id, err)
+				http.Error(w, fmt.Sprintf("Failed to update chunk: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			totalRows++
+		}
+
+		w.WriteHeader(http.StatusOK)
+		logger.Printf("Successfully generated and saved %d embeddings", totalRows)
+	}
+}
+
+func HandleRetrievalQuery(logger *log.Logger, pgxConn *pgxpool.Pool, geminiApiKey string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow POST requests
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Failed to parse form", http.StatusBadRequest)
+			return
+		}
+
+		query := r.FormValue("query")
+		if query == "" {
+			http.Error(w, "Query is required", http.StatusBadRequest)
+			return
+		}
+
+		logger.Printf("Query: %s", query)
+
+		embedding, err := helpers.GenerateGeminiEmbedding(geminiApiKey, query, "gemini-embedding-exp-03-07", helpers.TaskTypeRetrievalQuery)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to generate embedding: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		logger.Printf("Embedding generated for query is dimension %d", len(embedding))
+
+		// Convert query embedding to PostgreSQL vector format
+		vectorStr := helpers.ConvertToVector(embedding)
+
+		// Use cosine similarity operator (<->) with proper vector casting
+		rows, err := pgxConn.Query(r.Context(), "SELECT id, text, metadata FROM chunks ORDER BY vector_embedding <=> $1::vector LIMIT 5", vectorStr)
+		if err != nil {
+			logger.Printf("Error in similarity search: %v", err)
+			http.Error(w, fmt.Sprintf("Failed to query chunks: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var chunks []Chunk
+		for rows.Next() {
+			var id int
+			var text string
+			var metadata ChunkMetadata
+			err = rows.Scan(&id, &text, &metadata)
+			if err != nil {
+				logger.Printf("Error scanning row: %v", err)
+				http.Error(w, fmt.Sprintf("Failed to scan chunk: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			chunks = append(chunks, Chunk{
+				ID:       id,
+				Text:     text,
+				Metadata: metadata,
+			})
+		}
+
+		logger.Printf("Found %d chunks in similarity search", len(chunks))
+
+		type ResponseData struct {
+			Text       string   `json:"text"`
+			SourceURL  string   `json:"source_url"`
+			ChunkPath  []string `json:"chunk_path"`
+			ChunkIndex int      `json:"chunk_index"`
+		}
+
+		responseData := []ResponseData{}
+		for _, chunk := range chunks {
+			responseData = append(responseData, ResponseData{
+				Text:       chunk.Text,
+				SourceURL:  chunk.Metadata.SourceURL,
+				ChunkPath:  chunk.Metadata.ChunkPath,
+				ChunkIndex: chunk.Metadata.Index,
+			})
+		}
+
+		// Write the chunks to the response
+		helpers.Encode(w, r, http.StatusOK, responseData)
 	}
 }
 
@@ -355,4 +611,132 @@ func ConvertHTMLToMarkdown(htmlContent, urlString string) (string, error) {
 	}
 
 	return markdown, nil
+}
+
+func CleanMarkdown(markdownContent string) string {
+	// Split the markdown into lines
+	lines := strings.Split(markdownContent, "\n")
+
+	// Variables to track the current state
+	var cleanedLines []string
+	var currentHeader string
+	var sectionLines []string
+	var sectionContainsNonLinks bool
+
+	// Regular expressions for detecting headers and links
+	headerRegex := regexp.MustCompile(`^#{1,6}\s+.*$`)
+	linkRegex := regexp.MustCompile(`^\s*(?:[*+-]\s*)?\[.*?\]\(.*?\).*$`)
+	emptyLineRegex := regexp.MustCompile(`^\s*$`)
+
+	// Process each line
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+
+		// Check if the line is a header
+		if headerRegex.MatchString(line) {
+			// Process the previous section if it exists
+			if len(sectionLines) > 0 {
+				if sectionContainsNonLinks {
+					if currentHeader != "" {
+						cleanedLines = append(cleanedLines, currentHeader)
+					}
+					cleanedLines = append(cleanedLines, sectionLines...)
+				}
+			}
+
+			// Start a new section
+			currentHeader = line
+			sectionLines = []string{}
+			sectionContainsNonLinks = false
+			continue
+		}
+
+		// Add the line to the current section
+		if !emptyLineRegex.MatchString(line) {
+			sectionLines = append(sectionLines, line)
+
+			// Check if the line is not a link
+			if !linkRegex.MatchString(line) {
+				sectionContainsNonLinks = true
+			}
+		} else if len(sectionLines) > 0 {
+			// Empty line - add it to the section if we have content
+			sectionLines = append(sectionLines, line)
+		}
+
+		// If we're at the end of the file, process the last section
+		if i == len(lines)-1 && len(sectionLines) > 0 {
+			if sectionContainsNonLinks {
+				if currentHeader != "" {
+					cleanedLines = append(cleanedLines, currentHeader)
+				}
+				cleanedLines = append(cleanedLines, sectionLines...)
+			}
+		}
+	}
+
+	return strings.Join(cleanedLines, "\n")
+}
+
+func GetMarkdownPath(logger *log.Logger, markdownContent, chunk string) []string {
+	// Find the position of the chunk in the markdown content
+	chunkPos := strings.Index(markdownContent, chunk)
+	if chunkPos == -1 {
+		logger.Printf("Chunk not found in markdown content")
+		return []string{}
+	}
+
+	// Extract the content before the chunk
+	contentBeforeChunk := markdownContent[:chunkPos]
+
+	// Split the content into lines
+	lines := strings.Split(contentBeforeChunk, "\n")
+
+	// Initialize variables to track headers and their levels
+	var path []string
+	headerLevels := make([]int, 0)
+
+	// Process each line to find headers
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if len(trimmedLine) == 0 {
+			continue
+		}
+
+		// Check if the line is a header (starts with #)
+		if trimmedLine[0] == '#' {
+			// Count the number of # characters
+			level := 0
+			for i := 0; i < len(trimmedLine) && trimmedLine[i] == '#'; i++ {
+				level++
+			}
+
+			// Extract the header text
+			headerText := ""
+			if level < len(trimmedLine) && trimmedLine[level] == ' ' {
+				headerText = strings.TrimSpace(trimmedLine[level:])
+			}
+
+			if headerText != "" {
+				// Remove headers of equal or higher level
+				for len(headerLevels) > 0 && headerLevels[len(headerLevels)-1] >= level {
+					headerLevels = headerLevels[:len(headerLevels)-1]
+					path = path[:len(path)-1]
+				}
+
+				// Add the new header to the path
+				headerLevels = append(headerLevels, level)
+				path = append(path, strings.Repeat("#", level)+" "+headerText)
+			}
+		}
+	}
+
+	return path
+}
+
+// TODO: fix issue where code blocks are getting chunked in the middle of the code block / code block is not being closed
+func ChunkHasCode(chunk string) bool {
+	// Check if the chunk contains any code blocks
+	codeBlock := regexp.MustCompile("```(.*)```")
+	return codeBlock.MatchString(chunk)
 }

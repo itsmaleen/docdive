@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package rag_tools;
+
+service MarkdownChunkerService {
+  rpc ChunkMarkdown (ChunkMarkdownRequest) returns (ChunkMarkdownResponse) {}
+}
+
+message ChunkMarkdownRequest {
+  string content = 1;
+  int32 chunk_size = 2;
+  int32 overlap = 3;
+}
+
+message ChunkMarkdownResponse {
+  repeated string chunks = 1;
+} 

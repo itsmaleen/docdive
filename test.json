@@ -1,0 +1,46 @@
+[
+  {
+    "text": "If you want real-time transcription, you must specify `transcription_options.provider` when [Creating the Bot](https://docs.recall.ai/reference/bot_create). Specifying this parameter will cause transcription to be done, which can be retrieved through the [Get Bot Transcript](https://docs.recall.ai/reference/bot_transcript_list) endpoint.\n\nIf you want to get the transcript pushed to your server, you can also specify the `real_time_transcription.webhook_url` parameter, which will cause the transcription to be sent as a [webhook](https://docs.recall.ai/reference/real-time-transcription#webhooks) to the specified URL.",
+    "source_url": "https://docs.recall.ai/docs/faq",
+    "chunk_path": [
+      "# Bots FAQ",
+      "## Why am I not getting transcription? [](https://docs.recall.ai#why-am-i-not-getting-transcription)"
+    ],
+    "chunk_index": 8
+  },
+  {
+    "text": "# Quickstart [](https://docs.recall.ai#quickstart)\n* * *\n\n1. Start an [instant meeting](https://meet.google.com/) and copy the URL.\n2. Call [Create Bot](https://docs.recall.ai/reference/bot_create) while setting the `transcription_options.provider` to `meeting_captions`.\n   \n   *Take note of the `id` in the response.*\n   \n   cURL\n   \n   ```curl\n   curl --request POST \\\n        --url https://us-east-1.recall.ai/api/v1/bot/ \\\n        --header 'Authorization: Token {RECALL_API_KEY}' \\\n        --header 'accept: application/json' \\\n        --header 'content-type: application/json' \\\n        --data '\n   {\n     \"meeting_url\": {MEETING_URL},\n     \"transcription_options\": {\n       \"provider\": \"meeting_captions\"\n     }\n   }",
+    "source_url": "https://docs.recall.ai/docs/meeting-caption-transcription",
+    "chunk_path": [
+      "# Meeting Caption Transcription",
+      "## Supported platforms [](https://docs.recall.ai#supported-platforms)"
+    ],
+    "chunk_index": 3
+  },
+  {
+    "text": "```\n\n*Enabling real time transcription for calendar bots*\n\nJSON\n\n```Text\n{\n  \"transcription_options\": {\n    \"provider\": \"assembly_ai\"\n  },\n  \"real_time_transcription\": {\n     \"destination_url\": \u003cYOUR_WEBHOOK_URL\u003e\n  }\n}",
+    "source_url": "https://docs.recall.ai/docs/calendar-v1-1",
+    "chunk_path": [
+      "# Configuring Calendar Bots [](https://docs.recall.ai#configuring-calendar-bots)"
+    ],
+    "chunk_index": 6
+  },
+  {
+    "text": "```\n\n*Enabling real time transcription for calendar bots*\n\nJSON\n\n```Text\n{\n  \"transcription_options\": {\n    \"provider\": \"assembly_ai\"\n  },\n  \"real_time_transcription\": {\n     \"destination_url\": \u003cYOUR_WEBHOOK_URL\u003e\n  }\n}",
+    "source_url": "https://docs.recall.ai/docs/calendar-v1-integration-guide",
+    "chunk_path": [
+      "# Configuring Calendar Bots [](https://docs.recall.ai#configuring-calendar-bots)"
+    ],
+    "chunk_index": 6
+  },
+  {
+    "text": "```\n\nSpecifying this parameter will cause transcription to be done, which can be retrieved in-full using [Get Bot Transcript](https://docs.recall.ai/reference/bot_transcript_list).\n\nThis is also a prerequisite to receiving real-time transcription webhook events.\n\n### Specify the `real_time_transcription.destination_url` parameter [](https://docs.recall.ai#specify-the-real_time_transcriptiondestination_url-parameter)\n\u003e ## ☑️\n\u003e \n\u003e To start receiving transcription webhook events, specify the `real_time_transcription.destination_url` parameter in the [Create Bot](https://docs.recall.ai/reference/bot_create) endpoint.\n\nAt this endpoint, you'll want to set up an endpoint to handle incoming transcription events.\n\nFor example, I might have an endpoint at `https://api.my-app.com/webhook/transcription` that verifies incoming webhooks and fires off an event of your own in your application.\n\n### Webhook Verification [](https://docs.recall.ai#webhook-verification)\n**Verifying incoming webhooks**",
+    "source_url": "https://docs.recall.ai/docs/real-time-transcription",
+    "chunk_path": [
+      "# Transcription webhooks [](https://docs.recall.ai#transcription-webhooks)",
+      "## Setup and verification [](https://docs.recall.ai#setup-and-verification)",
+      "### Configure transcription for the bot [](https://docs.recall.ai#configure-transcription-for-the-bot)"
+    ],
+    "chunk_index": 6
+  }
+]

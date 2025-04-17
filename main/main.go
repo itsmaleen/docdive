@@ -59,7 +59,22 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 		return err
 	}
 
-	srv := Server(l, pgsqlConnection)
+	if getenv("RAG_TOOLS_HOST") == "" {
+		return fmt.Errorf("RAG_TOOLS_HOST must be set")
+	}
+
+	ragToolsService, err := NewRAGToolsService(getenv("RAG_TOOLS_HOST"))
+	if err != nil {
+		l.Printf("error creating RAGToolsService: %v\n", err)
+		return err
+	}
+
+	geminiApiKey := getenv("GEMINI_API_KEY")
+	if geminiApiKey == "" {
+		return fmt.Errorf("GEMINI_API_KEY must be set")
+	}
+
+	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("0.0.0.0", "8080"),

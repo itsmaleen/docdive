@@ -10,3 +10,16 @@ services:
       watch:
         - path: main
           action: rebuild
+  rag-tools:
+    build:
+      context: rag-tools
+      dockerfile: Dockerfile
+    container_name: rag-tools
+    ports:
+      - "50051:50051"
+    env_file:
+      - .env
+    develop:
+      watch:
+        - path: rag-tools
+          action: rebuild
