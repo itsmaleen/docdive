@@ -38,6 +38,12 @@ const DocsUrlRoute = DocsUrlImport.update({
   getParentRoute: () => rootRoute,
 } as any);
 
+const DocsUrlRoute = DocsUrlImport.update({
+  id: "/docs/$url",
+  path: "/docs/$url",
+  getParentRoute: () => rootRoute,
+} as any);
+
 const DemoTanstackQueryRoute = DemoTanstackQueryImport.update({
   id: "/demo/tanstack-query",
   path: "/demo/tanstack-query",
