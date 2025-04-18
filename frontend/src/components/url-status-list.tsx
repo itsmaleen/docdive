@@ -115,7 +115,11 @@ export function UrlStatusList({
               No URLs match the selected filter
             </div>
           ) : (
+<<<<<<< HEAD
             filteredUrls.map((url) => (
+=======
+            filteredUrls.map((url, index) => (
+>>>>>>> c25fe3d (add polymet components)
               <div
                 key={url.url}
                 className={cn(
