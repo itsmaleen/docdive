@@ -10,20 +10,20 @@ import TanstackQueryLayout from "../integrations/tanstack-query/layout";
 import type { QueryClient } from "@tanstack/react-query";
 
 interface MyRouterContext {
-	queryClient: QueryClient;
+  queryClient: QueryClient;
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-	component: () => (
-		<>
-			<ClerkProvider>
-				<Header />
+  component: () => (
+    <>
+      <ClerkProvider>
+        {/* <Header /> */}
 
-				<Outlet />
-				<TanStackRouterDevtools />
+        <Outlet />
+        <TanStackRouterDevtools />
 
-				<TanstackQueryLayout />
-			</ClerkProvider>
-		</>
-	),
+        <TanstackQueryLayout />
+      </ClerkProvider>
+    </>
+  ),
 });
