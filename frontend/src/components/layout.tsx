@@ -1,14 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import { MoonIcon, SunIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useStore } from "@tanstack/react-store";
+import { themeStore, toggleTheme } from "@/lib/theme-store";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle("dark");
-  };
+  const isDarkMode = useStore(themeStore, (state) => state.isDarkMode);
 
   return (
     <div className={`min-h-screen bg-background ${isDarkMode ? "dark" : ""}`}>

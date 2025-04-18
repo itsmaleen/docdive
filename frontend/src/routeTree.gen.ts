@@ -13,6 +13,7 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as LoadingImport } from './routes/loading'
 import { Route as IndexImport } from './routes/index'
+import { Route as DocsUrlImport } from './routes/docs.$url'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 import { Route as DemoStoreImport } from './routes/demo.store'
 import { Route as DemoClerkImport } from './routes/demo.clerk'
@@ -28,6 +29,12 @@ const LoadingRoute = LoadingImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DocsUrlRoute = DocsUrlImport.update({
+  id: '/docs/$url',
+  path: '/docs/$url',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -88,6 +95,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTanstackQueryImport
       parentRoute: typeof rootRoute
     }
+    '/docs/$url': {
+      id: '/docs/$url'
+      path: '/docs/$url'
+      fullPath: '/docs/$url'
+      preLoaderRoute: typeof DocsUrlImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -99,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/demo/clerk': typeof DemoClerkRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/docs/$url': typeof DocsUrlRoute
 }
 
 export interface FileRoutesByTo {
@@ -107,6 +122,7 @@ export interface FileRoutesByTo {
   '/demo/clerk': typeof DemoClerkRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/docs/$url': typeof DocsUrlRoute
 }
 
 export interface FileRoutesById {
@@ -116,6 +132,7 @@ export interface FileRoutesById {
   '/demo/clerk': typeof DemoClerkRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/docs/$url': typeof DocsUrlRoute
 }
 
 export interface FileRouteTypes {
@@ -126,8 +143,15 @@ export interface FileRouteTypes {
     | '/demo/clerk'
     | '/demo/store'
     | '/demo/tanstack-query'
+    | '/docs/$url'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/loading' | '/demo/clerk' | '/demo/store' | '/demo/tanstack-query'
+  to:
+    | '/'
+    | '/loading'
+    | '/demo/clerk'
+    | '/demo/store'
+    | '/demo/tanstack-query'
+    | '/docs/$url'
   id:
     | '__root__'
     | '/'
@@ -135,6 +159,7 @@ export interface FileRouteTypes {
     | '/demo/clerk'
     | '/demo/store'
     | '/demo/tanstack-query'
+    | '/docs/$url'
   fileRoutesById: FileRoutesById
 }
 
@@ -144,6 +169,7 @@ export interface RootRouteChildren {
   DemoClerkRoute: typeof DemoClerkRoute
   DemoStoreRoute: typeof DemoStoreRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  DocsUrlRoute: typeof DocsUrlRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -152,6 +178,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoClerkRoute: DemoClerkRoute,
   DemoStoreRoute: DemoStoreRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  DocsUrlRoute: DocsUrlRoute,
 }
 
 export const routeTree = rootRoute
@@ -168,7 +195,8 @@ export const routeTree = rootRoute
         "/loading",
         "/demo/clerk",
         "/demo/store",
-        "/demo/tanstack-query"
+        "/demo/tanstack-query",
+        "/docs/$url"
       ]
     },
     "/": {
@@ -185,6 +213,9 @@ export const routeTree = rootRoute
     },
     "/demo/tanstack-query": {
       "filePath": "demo.tanstack-query.tsx"
+    },
+    "/docs/$url": {
+      "filePath": "docs.$url.tsx"
     }
   }
 }

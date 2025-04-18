@@ -115,7 +115,7 @@ export function UrlStatusList({
               No URLs match the selected filter
             </div>
           ) : (
-            filteredUrls.map((url, index) => (
+            filteredUrls.map((url) => (
               <div
                 key={url.url}
                 className={cn(

@@ -4,6 +4,7 @@ import {
   ZapIcon,
   BookOpenIcon,
   ExternalLinkIcon,
+  GlobeIcon,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "./ui/button";
@@ -233,6 +234,10 @@ export function DocumentationViewer({
       <div className="border-b border-border p-3 flex items-center justify-between">
         <Tabs defaultValue="endpoints">
           <TabsList>
+            <TabsTrigger value="site">
+              <GlobeIcon className="h-4 w-4 mr-2" />
+              Site
+            </TabsTrigger>
             <TabsTrigger value="endpoints">
               <ZapIcon className="h-4 w-4 mr-2" />
               Endpoints

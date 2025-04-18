@@ -11,8 +11,6 @@ interface MessageItemProps {
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const isBot = message.sender === "bot";
-
   return (
     <div className="flex items-start gap-3">
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">

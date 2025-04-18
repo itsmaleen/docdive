@@ -11,10 +11,11 @@ import {
   type UrlStatus,
 } from "@/data/processing-data";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-
+import Layout from "@/components/layout";
+import { Link } from "@tanstack/react-router";
 const documentationUrlSchema = z.object({
   url: z.string().url(),
 });
@@ -27,13 +28,16 @@ export const Route = createFileRoute("/loading")({
 function RouteComponent() {
   // Get search param "url"
   const { url } = Route.useSearch();
+  const decodedUrl = decodeURIComponent(url);
 
   return (
-    <LoadingScreen
-      documentationUrl={url}
-      onCancel={() => {}}
-      onComplete={() => {}}
-    />
+    <Layout>
+      <LoadingScreen
+        documentationUrl={decodedUrl}
+        onCancel={() => {}}
+        onComplete={() => {}}
+      />
+    </Layout>
   );
 }
 
@@ -136,8 +140,6 @@ export function LoadingScreen({
     const urlsForStage = [...urls];
     let completedForStage = 0;
     const totalForStage = urlCount;
-    const interval = 100; // Update every 100ms
-    const incrementsPerUrl = duration / interval / totalForStage;
 
     for (let i = 0; i < totalForStage; i++) {
       // Check if we're paused
@@ -264,15 +266,27 @@ export function LoadingScreen({
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <Button variant="ghost" onClick={onCancel} className="mb-2">
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+          <div className="w-full flex items-center">
+            <Button variant="ghost" onClick={onCancel} className="mb-2">
+              <ArrowLeftIcon className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </div>
           <h1 className="text-2xl font-bold">Processing Documentation</h1>
           <p className="text-muted-foreground">
             {new URL(documentationUrl).hostname}
           </p>
         </div>
+        <Link
+          to="/docs/$url"
+          params={{ url: new URL(documentationUrl).hostname }}
+          className="mb-2"
+        >
+          <Button variant="ghost" onClick={onCancel} className="mb-2">
+            Chat
+            <ArrowRightIcon className="h-4 w-4 ml-2" />
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

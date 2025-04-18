@@ -1,9 +1,4 @@
-import {
-  UploadIcon,
-  MessageSquareIcon,
-  ZapIcon,
-  CheckIcon,
-} from "lucide-react";
+import { UploadIcon, MessageSquareIcon, ZapIcon } from "lucide-react";
 
 interface InteractionStepsProps {
   currentStep: number;
@@ -37,7 +32,6 @@ export function InteractionSteps({ currentStep }: InteractionStepsProps) {
       <div className="space-y-4">
         {steps.map((step, index) => {
           const isActive = currentStep >= step.id;
-          const isCompleted = currentStep > step.id;
 
           return (
             <div key={index} className="flex items-start gap-3">
