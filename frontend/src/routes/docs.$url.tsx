@@ -5,6 +5,7 @@ import { UrlInputEnhanced } from "@/components/url-input";
 import { createFileRoute } from "@tanstack/react-router";
 import Layout from "@/components/layout";
 import { useState } from "react";
+import { useDocumentationQuery } from "@/api/queries";
 
 export const Route = createFileRoute("/docs/$url")({
   component: RouteComponent,
@@ -16,6 +17,12 @@ function RouteComponent() {
   const [documentationFile] = useState<File | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
+
+  const {
+    data: documentation,
+    isLoading,
+    error,
+  } = useDocumentationQuery(documentationUrl);
 
   const handleQuestionSubmit = () => {
     // In a real application, this would trigger an API call to process the question
@@ -35,6 +42,9 @@ function RouteComponent() {
             file={documentationFile}
             activeSection={activeSection}
             className="w-full md:w-2/3"
+            documentation={documentation}
+            isLoading={isLoading}
+            error={error || undefined}
           />
 
           <div className="w-full md:w-1/3 flex flex-col gap-4">

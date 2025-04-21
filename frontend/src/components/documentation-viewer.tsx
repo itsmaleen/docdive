@@ -1,16 +1,23 @@
 import { useEffect, useRef } from "react";
 import {
-  SearchIcon,
   ZapIcon,
   BookOpenIcon,
   ExternalLinkIcon,
   GlobeIcon,
+  Loader2,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import Markdown from "react-markdown";
+import type { DocumentationPage } from "@/api/queries";
+import { TabsContent } from "@radix-ui/react-tabs";
+import remarkGfm from "remark-gfm";
+import "@/markdown.css";
 
 interface DocumentationViewerProps {
+  documentation?: DocumentationPage[];
+  isLoading?: boolean;
+  error?: Error;
   url?: string;
   file?: File | null;
   activeSection?: string | null;
@@ -18,6 +25,9 @@ interface DocumentationViewerProps {
 }
 
 export function DocumentationViewer({
+  documentation,
+  isLoading,
+  error,
   url,
   file,
   activeSection,
@@ -232,7 +242,7 @@ export function DocumentationViewer({
       className={`flex flex-col bg-card rounded-lg border border-border overflow-hidden ${className}`}
     >
       <div className="border-b border-border p-3 flex items-center justify-between">
-        <Tabs defaultValue="endpoints">
+        <Tabs className="w-full h-full" defaultValue="site">
           <TabsList>
             <TabsTrigger value="site">
               <GlobeIcon className="h-4 w-4 mr-2" />
@@ -247,50 +257,66 @@ export function DocumentationViewer({
               Schemas
             </TabsTrigger>
           </TabsList>
+          <TabsContent value="site">
+            {isLoading ? (
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              </div>
+            ) : (
+              <div className="markdown-body flex-1 overflow-y-auto p-4">
+                <Markdown remarkPlugins={[remarkGfm]}>
+                  {documentation?.[0].markdown}
+                </Markdown>
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="endpoints">
+            <div ref={viewerRef} className="flex-1 overflow-y-auto p-4">
+              {url ? (
+                <div className="text-center p-4">
+                  <div className="flex items-center justify-between mb-4 bg-muted/30 p-2 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Loaded from: {url}
+                    </p>
+                    <Button variant="ghost" size="sm" className="h-7">
+                      <ExternalLinkIcon className="h-4 w-4 mr-1" />
+                      Open Original
+                    </Button>
+                  </div>
+                  {mockDocumentation}
+                </div>
+              ) : file ? (
+                <div className="text-center p-4">
+                  <div className="flex items-center justify-between mb-4 bg-muted/30 p-2 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Loaded from file: {file.name}
+                    </p>
+                    <Button variant="ghost" size="sm" className="h-7">
+                      <ExternalLinkIcon className="h-4 w-4 mr-1" />
+                      View Raw
+                    </Button>
+                  </div>
+                  {mockDocumentation}
+                </div>
+              ) : (
+                <div className="text-center p-4">
+                  <p>No documentation loaded</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
 
-        <div className="relative w-64">
+        {/* <div className="relative w-64">
           <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 
           <Input
             placeholder="Search documentation..."
             className="pl-8 h-8 text-sm"
           />
-        </div>
-      </div>
-
-      <div ref={viewerRef} className="flex-1 overflow-y-auto p-4">
-        {url ? (
-          <div className="text-center p-4">
-            <div className="flex items-center justify-between mb-4 bg-muted/30 p-2 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Loaded from: {url}
-              </p>
-              <Button variant="ghost" size="sm" className="h-7">
-                <ExternalLinkIcon className="h-4 w-4 mr-1" />
-                Open Original
-              </Button>
-            </div>
-            {mockDocumentation}
-          </div>
-        ) : file ? (
-          <div className="text-center p-4">
-            <div className="flex items-center justify-between mb-4 bg-muted/30 p-2 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Loaded from file: {file.name}
-              </p>
-              <Button variant="ghost" size="sm" className="h-7">
-                <ExternalLinkIcon className="h-4 w-4 mr-1" />
-                View Raw
-              </Button>
-            </div>
-            {mockDocumentation}
-          </div>
-        ) : (
-          <div className="text-center p-4">
-            <p>No documentation loaded</p>
-          </div>
-        )}
+        </div> */}
       </div>
     </div>
   );
