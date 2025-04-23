@@ -34,3 +34,13 @@ func GetTitleFromHTML(htmlContent string) string {
 	f(doc)
 	return title
 }
+
+func CleanMarkdownByStartingFromTitle(markdown string, title string) string {
+	lines := strings.Split(markdown, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, title) {
+			return strings.Join(lines[i:], "\n")
+		}
+	}
+	return markdown
+}

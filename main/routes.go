@@ -21,6 +21,7 @@ func addRoutes(
 	mux.HandleFunc("/scrape/markdown/chunk", handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient))
 	mux.HandleFunc("/embeddings", handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey))
 	mux.HandleFunc("/retrieval", handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey))
+	mux.HandleFunc("/rag", handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey))
 
 	mux.HandleFunc("/docs", handlers.HandleLoadDocsMarkdown(logger, pgxConn))
 }
