@@ -65,49 +65,6 @@ export function EnhancedMarkdownViewer({
     return () => observer.disconnect();
   }, []);
 
-  // Handle scrolling to active section
-  useEffect(() => {
-    if (activeSection && viewerRef.current) {
-      const sectionElement = viewerRef.current.querySelector(
-        `#${activeSection}`
-      );
-
-      if (sectionElement) {
-        // Scroll to the element with smooth behavior
-        sectionElement.scrollIntoView({ behavior: "smooth", block: "center" });
-
-        // Add highlight effect
-        sectionElement.classList.add(
-          "bg-yellow-100",
-          "dark:bg-yellow-900/30",
-          "scale-105",
-          "transition-all",
-          "duration-500"
-        );
-
-        // Add a border to make it more noticeable
-        sectionElement.classList.add(
-          "border-2",
-          "border-primary",
-          "rounded-lg",
-          "shadow-lg"
-        );
-
-        // Remove the highlight effect after some time
-        setTimeout(() => {
-          sectionElement.classList.remove(
-            "bg-yellow-100",
-            "dark:bg-yellow-900/30",
-            "scale-105",
-            "border-2",
-            "border-primary",
-            "shadow-lg"
-          );
-        }, 3000);
-      }
-    }
-  }, [activeSection]);
-
   // Function to generate IDs for headings
   const generateSlug = (text: string) => {
     return text
@@ -130,49 +87,10 @@ export function EnhancedMarkdownViewer({
 
   // Handle section click from sidebar
   const handleSectionClick = (sectionId: string) => {
-    // Find the element with the given ID
-    if (viewerRef.current) {
-      const sectionElement = viewerRef.current.querySelector(`#${sectionId}`);
-
-      if (sectionElement) {
-        // Scroll to the element with smooth behavior
-        sectionElement.scrollIntoView({ behavior: "smooth", block: "start" });
-
-        // Add highlight effect
-        sectionElement.classList.add(
-          "bg-yellow-100",
-          "dark:bg-yellow-900/30",
-          "scale-105",
-          "transition-all",
-          "duration-500"
-        );
-
-        // Add a border to make it more noticeable
-        sectionElement.classList.add(
-          "border-2",
-          "border-primary",
-          "rounded-lg",
-          "shadow-lg"
-        );
-
-        // Remove the highlight effect after some time
-        setTimeout(() => {
-          sectionElement.classList.remove(
-            "bg-yellow-100",
-            "dark:bg-yellow-900/30",
-            "scale-105",
-            "border-2",
-            "border-primary",
-            "shadow-lg"
-          );
-        }, 3000);
-      }
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
     }
-  };
-
-  // Toggle sidebar visibility
-  const toggleSidebar = () => {
-    setSidebarVisible(!sidebarVisible);
   };
 
   return (
@@ -195,7 +113,7 @@ export function EnhancedMarkdownViewer({
           <Button
             variant="outline"
             size="sm"
-            onClick={toggleSidebar}
+            onClick={() => setSidebarVisible(!sidebarVisible)}
             className="h-8"
           >
             {sidebarVisible ? "Hide Sidebar" : "Show Sidebar"}
@@ -208,7 +126,6 @@ export function EnhancedMarkdownViewer({
               onChange={handleSearch}
               className="pl-8 h-8 text-sm"
             />
-
             <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
 
@@ -245,6 +162,12 @@ export function EnhancedMarkdownViewer({
         ) : error ? (
           <div className="flex-1 text-center p-6 text-destructive">
             <p>Error loading documentation: {error.message}</p>
+          </div>
+        ) : !markdown ? (
+          <div className="flex-1 flex items-center justify-center p-6 text-muted-foreground">
+            <p className="text-center">
+              Please select a page from the sidebar to view its documentation.
+            </p>
           </div>
         ) : (
           <ScrollArea className="flex-1" ref={viewerRef}>
@@ -299,7 +222,6 @@ export function EnhancedMarkdownViewer({
                     p: ({ node, ...props }) => (
                       <p className="my-3 leading-relaxed" {...props} />
                     ),
-
                     a: ({ node, ...props }) => (
                       <a
                         className="text-primary hover:underline"
@@ -308,32 +230,27 @@ export function EnhancedMarkdownViewer({
                         {...props}
                       />
                     ),
-
                     ul: ({ node, ...props }) => (
                       <ul
                         className="list-disc pl-6 my-3 space-y-1"
                         {...props}
                       />
                     ),
-
                     ol: ({ node, ...props }) => (
                       <ol
                         className="list-decimal pl-6 my-3 space-y-1"
                         {...props}
                       />
                     ),
-
                     li: ({ node, ...props }) => (
                       <li className="my-1" {...props} />
                     ),
-
                     blockquote: ({ node, ...props }) => (
                       <blockquote
                         className="border-l-4 border-muted-foreground/30 pl-4 italic my-4"
                         {...props}
                       />
                     ),
-
                     code: ({ node, className, children, ...props }: any) => {
                       const match = /language-(\w+)/.exec(className || "");
                       const isInline = !match;
@@ -367,28 +284,22 @@ export function EnhancedMarkdownViewer({
                         />
                       </div>
                     ),
-
                     thead: ({ node, ...props }) => (
                       <thead className="bg-muted/50" {...props} />
                     ),
-
                     tbody: ({ node, ...props }) => <tbody {...props} />,
-
                     tr: ({ node, ...props }) => (
                       <tr className="border-b border-border" {...props} />
                     ),
-
                     th: ({ node, ...props }) => (
                       <th
                         className="border border-border p-2 text-left font-semibold"
                         {...props}
                       />
                     ),
-
                     td: ({ node, ...props }) => (
                       <td className="border border-border p-2" {...props} />
                     ),
-
                     hr: ({ node, ...props }) => (
                       <hr className="my-6 border-border" {...props} />
                     ),

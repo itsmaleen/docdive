@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronRightIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  Loader2,
+} from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +63,8 @@ export function DocumentationSidebar({
 
       const flatSections: SidebarSection[] = matches.map((match) => {
         const level = match[1].length;
-        const title = match[2].trim();
+        // Remove link from title [](...)
+        const title = match[2].trim().replace(/\[.*?\]\(.*?\)/g, "");
         const id = generateSlug(title);
 
         return {
@@ -261,7 +267,8 @@ export function DocumentationSidebar({
             placeholder="Search documentation..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 text-sm pr-20"
+            className="h-8 text-sm pr-20 placeholder:text-xs"
+            disabled={isLoading}
           />
           {searchQuery && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -299,45 +306,57 @@ export function DocumentationSidebar({
 
       <ScrollArea className="flex-1 overflow-y-auto">
         <div className="p-2 w-full">
-          {documentation?.map((page, index) => (
-            <div
-              key={index}
-              className={`mb-2 w-full ${
-                searchResults.includes(index) && searchQuery !== ""
-                  ? index === searchResults[currentResultIndex]
-                    ? "bg-secondary/80"
-                    : "bg-secondary/40"
-                  : ""
-              }`}
-              ref={(el) => {
-                if (el) resultRefs.current.set(index, el);
-              }}
-            >
-              <Button
-                variant="ghost"
-                className="w-full justify-between h-auto min-h-8 px-2 py-1.5 whitespace-normal"
-                onClick={() => setDocumentationPage(page)}
-              >
-                <span className="text-left break-words pr-2">{page.title}</span>
-                <ChevronRightIcon
-                  className={`h-4 w-4 transition-transform flex-shrink-0 ${
-                    page.title === currentTitle ? "rotate-90" : ""
-                  }`}
-                />
-              </Button>
-              {page.title === currentTitle && (
-                <div className="ml-4 mt-1 border-l-2 border-border w-4/5">
-                  {sections.length > 0 ? (
-                    sections.map((section) => renderSection(section))
-                  ) : (
-                    <div className="p-4 text-center text-muted-foreground">
-                      No sections found
-                    </div>
-                  )}
-                </div>
-              )}
+          {isLoading ? (
+            <div className="flex items-center justify-center p-6">
+              <Loader2 className="h-6 w-6 animate-spin" />
             </div>
-          ))}
+          ) : error ? (
+            <div className="text-center p-6 text-destructive">
+              <p>Error loading documentation: {error.message}</p>
+            </div>
+          ) : (
+            documentation?.map((page, index) => (
+              <div
+                key={index}
+                className={`mb-2 w-full ${
+                  searchResults.includes(index) && searchQuery !== ""
+                    ? index === searchResults[currentResultIndex]
+                      ? "bg-secondary/80"
+                      : "bg-secondary/40"
+                    : ""
+                }`}
+                ref={(el) => {
+                  if (el) resultRefs.current.set(index, el);
+                }}
+              >
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between h-auto min-h-8 px-2 py-1.5 whitespace-normal"
+                  onClick={() => setDocumentationPage(page)}
+                >
+                  <span className="text-left break-words pr-2">
+                    {page.title}
+                  </span>
+                  <ChevronRightIcon
+                    className={`h-4 w-4 transition-transform flex-shrink-0 ${
+                      page.title === currentTitle ? "rotate-90" : ""
+                    }`}
+                  />
+                </Button>
+                {page.title === currentTitle && (
+                  <div className="ml-4 mt-1 border-l-2 border-border w-4/5">
+                    {sections.length > 0 ? (
+                      sections.map((section) => renderSection(section))
+                    ) : (
+                      <div className="p-4 text-center text-muted-foreground">
+                        No sections found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </ScrollArea>
     </div>
