@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-interface DocumentationPage {
+export interface DocumentationPage {
   url: string;
   markdown: string;
   title: string;

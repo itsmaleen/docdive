@@ -1,11 +1,11 @@
 import { ChatInterface } from "@/components/chat-interface";
-import { DocumentationViewer } from "@/components/documentation-viewer";
 import { InteractionSteps } from "@/components/interaction-steps";
 import { UrlInputEnhanced } from "@/components/url-input";
 import { createFileRoute } from "@tanstack/react-router";
 import Layout from "@/components/layout";
 import { useState } from "react";
 import { useDocumentationQuery } from "@/api/queries";
+import { EnhancedMarkdownViewer } from "@/components/enhanced-markdown-viewer";
 
 export const Route = createFileRoute("/docs/$url")({
   component: RouteComponent,
@@ -14,7 +14,6 @@ export const Route = createFileRoute("/docs/$url")({
 function RouteComponent() {
   const { url } = Route.useParams();
   const [documentationUrl] = useState<string>(url);
-  const [documentationFile] = useState<File | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -37,12 +36,11 @@ function RouteComponent() {
         <UrlInputEnhanced />
 
         <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)]">
-          <DocumentationViewer
-            url={documentationUrl}
-            file={documentationFile}
+          <EnhancedMarkdownViewer
+            documentation={documentation}
+            originalUrl={documentationUrl}
             activeSection={activeSection}
             className="w-full md:w-2/3"
-            documentation={documentation}
             isLoading={isLoading}
             error={error || undefined}
           />
