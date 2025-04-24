@@ -4,21 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DiagramSection } from "./diagram-section";
 import { MessageItem } from "./message-item";
-import { useMessages, useSendMessage } from "@/lib/chat-api";
-// import type { Message } from "@/lib/chat-api";
+import { useRAGAnswerMutation, type DocumentationPage } from "@/api/queries";
+import type { Message } from "@/lib/chat-api";
+import { addMessage, chatStore } from "@/lib/chat-store";
+import { useStore } from "@tanstack/react-store";
+import {
+  setActiveSection,
+  setActiveTitle,
+  setDocumentationPage,
+} from "@/lib/markdown-store";
 
 interface ChatInterfaceProps {
-  onQuestionSubmit: (question: string) => void;
+  documentation: DocumentationPage[] | undefined;
   className?: string;
 }
 
-export function ChatInterface({ onQuestionSubmit }: ChatInterfaceProps) {
+export function ChatInterface({ documentation }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Use React Query hooks
-  const { data: messages = [], isLoading: isLoadingMessages } = useMessages();
-  const { mutate: sendMessage, isPending: isSending } = useSendMessage();
+  const messages = useStore(chatStore, (state) => state.messages);
+
+  const { mutate: sendMessage, isPending: isSending } = useRAGAnswerMutation();
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -31,18 +38,15 @@ export function ChatInterface({ onQuestionSubmit }: ChatInterfaceProps) {
     e.preventDefault();
     if (!input.trim() || isSending) return;
 
-    // const userMessage: Message = {
-    //   id: Date.now().toString(),
-    //   content: input,
-    //   sender: "user",
-    //   timestamp: new Date(),
-    // };
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: input,
+      sender: "user",
+      timestamp: new Date(),
+      sources: [],
+    };
 
-    // // Add user message to the UI immediately (optimistic update)
-    // const updatedMessages = [...messages, userMessage];
-
-    // Call the onQuestionSubmit prop
-    onQuestionSubmit(input);
+    addMessage(userMessage);
 
     // Send the message using React Query mutation
     sendMessage(input);
@@ -64,41 +68,33 @@ export function ChatInterface({ onQuestionSubmit }: ChatInterfaceProps) {
           <Fragment key={message.id}>
             <MessageItem message={message} />
 
-            {message.links && message.links.length > 0 && (
+            {message.sources && message.sources.length > 0 && (
               <div className="ml-11 flex flex-wrap gap-2">
-                {message.links.map((link, linkIndex) => (
+                {message.sources.map((source, sourceIndex) => (
                   <Button
-                    key={linkIndex}
+                    key={sourceIndex}
                     variant="outline"
                     size="sm"
                     className="text-xs h-7 bg-secondary/30"
                     onClick={() => {
-                      const element = document.getElementById(link.section);
-                      if (element) {
-                        element.scrollIntoView({
-                          behavior: "smooth",
-                          block: "center",
-                        });
-                        element.classList.add(
-                          "bg-yellow-100",
-                          "dark:bg-yellow-900/30",
-                          "scale-105",
-                          "transition-all",
-                          "duration-500"
-                        );
+                      if (!documentation) return;
+                      const page = documentation.find(
+                        (page) => page.url === source.url
+                      );
+                      if (page) {
+                        setDocumentationPage(page);
                         setTimeout(() => {
-                          element.classList.remove(
-                            "bg-yellow-100",
-                            "dark:bg-yellow-900/30",
-                            "scale-105"
-                          );
-                        }, 2000);
+                          setActiveSection(source.text);
+                        }, 200);
+                      } else {
+                        console.log("no page found");
+                        console.log(documentation);
                       }
                     }}
                   >
                     <LinkIcon className="h-3 w-3 mr-1" />
 
-                    {link.text}
+                    {sourceIndex}
                   </Button>
                 ))}
               </div>
@@ -113,7 +109,7 @@ export function ChatInterface({ onQuestionSubmit }: ChatInterfaceProps) {
           </Fragment>
         ))}
 
-        {(isSending || isLoadingMessages) && (
+        {isSending && (
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               <BotIcon className="h-4 w-4 text-primary" />

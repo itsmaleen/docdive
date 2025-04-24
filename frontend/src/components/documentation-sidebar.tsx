@@ -9,8 +9,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { DocumentationPage } from "@/api/queries";
-import { setDocumentationPage, markdownStore } from "@/lib/markdown-store";
+import {
+  setDocumentationPage,
+  markdownStore,
+  setActiveTitle,
+} from "@/lib/markdown-store";
 import { useStore } from "@tanstack/react-store";
+import { generateSlug } from "@/lib/utils";
 
 interface SidebarSection {
   id: string;
@@ -24,7 +29,6 @@ interface DocumentationSidebarProps {
   isLoading?: boolean;
   error?: Error;
   onSectionClick: (sectionId: string) => void;
-  activeSection?: string | null;
   className?: string;
 }
 
@@ -33,7 +37,6 @@ export function DocumentationSidebar({
   isLoading = false,
   error,
   onSectionClick,
-  activeSection,
   className = "",
 }: DocumentationSidebarProps) {
   const [sections, setSections] = useState<SidebarSection[]>([]);
@@ -111,61 +114,22 @@ export function DocumentationSidebar({
     };
 
     setSections(extractSections(currentMarkdown));
-
-    // Auto-expand sections based on active section
-    if (activeSection) {
-      const newExpandedSections: Record<string, boolean> = {};
-
-      const findAndExpandParents = (
-        sectionList: SidebarSection[],
-        targetId: string,
-        parentIds: string[] = []
-      ): boolean => {
-        for (const section of sectionList) {
-          if (section.id === targetId) {
-            // Found the target, expand all parents
-            parentIds.forEach((id) => {
-              newExpandedSections[id] = true;
-            });
-            return true;
-          }
-
-          if (section.children) {
-            const found = findAndExpandParents(section.children, targetId, [
-              ...parentIds,
-              section.id,
-            ]);
-            if (found) return true;
-          }
-        }
-
-        return false;
-      };
-
-      findAndExpandParents(sections, activeSection);
-      setExpandedSections(newExpandedSections);
-    }
-  }, [currentMarkdown, activeSection]);
-
-  // Function to generate slug from heading text
-  const generateSlug = (text: string) => {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "-");
-  };
+  }, [currentMarkdown]);
 
   // Toggle section expansion
-  const toggleSection = (sectionId: string) => {
+  const toggleSection = (section: SidebarSection) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [sectionId]: !prev[sectionId],
+      [section.id]: !prev[section.id],
     }));
   };
 
   // Handle section click
-  const handleSectionClick = (sectionId: string) => {
-    onSectionClick(sectionId);
+  const handleSectionClick = (section: SidebarSection) => {
+    onSectionClick(section.id);
+    setActiveTitle(generateSlug(section.title));
+    console.log("Active section set to:", section.title);
+    console.log(generateSlug(section.title));
   };
 
   // Search through documentation titles
@@ -213,7 +177,7 @@ export function DocumentationSidebar({
   const renderSection = (section: SidebarSection, depth = 0) => {
     const hasChildren = section.children && section.children.length > 0;
     const isExpanded = expandedSections[section.id] || false;
-    const isActive = activeSection === section.id;
+    const isActive = section.title === currentTitle;
 
     return (
       <div key={section.id} className="my-0.5 w-full">
@@ -223,7 +187,7 @@ export function DocumentationSidebar({
               variant="ghost"
               size="icon"
               className="h-6 w-6 p-0 mr-1 flex-shrink-0 mt-0.5"
-              onClick={() => toggleSection(section.id)}
+              onClick={() => toggleSection(section)}
             >
               {isExpanded ? (
                 <ChevronDownIcon className="h-4 w-4" />
@@ -241,7 +205,7 @@ export function DocumentationSidebar({
               isActive ? "bg-secondary" : ""
             } hover:bg-secondary/80 w-full text-left break-words whitespace-normal`}
             style={{ paddingLeft: `${depth * 8 + 8}px` }}
-            onClick={() => handleSectionClick(section.id)}
+            onClick={() => handleSectionClick(section)}
           >
             {section.title}
           </Button>

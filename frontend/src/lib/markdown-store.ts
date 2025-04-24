@@ -6,6 +6,7 @@ export const markdownStore = new Store({
   documentationPage: null as DocumentationPage | null,
   isLoading: false,
   error: null as Error | null,
+  activeTitle: null as string | null,
   activeSection: null as string | null,
 });
 
@@ -28,6 +29,13 @@ export const setError = (error: Error | null) => {
   markdownStore.setState((state) => ({
     ...state,
     error,
+  }));
+};
+
+export const setActiveTitle = (activeTitle: string | null) => {
+  markdownStore.setState((state) => ({
+    ...state,
+    activeTitle,
   }));
 };
 

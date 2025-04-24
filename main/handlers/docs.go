@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/itsmaleen/tech-doc-processor/helpers"
 	"github.com/itsmaleen/tech-doc-processor/types"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -225,17 +227,37 @@ func HandleRAGQuery(logger *log.Logger, pgxConn *pgxpool.Pool, geminiApiKey stri
 			return
 		}
 
-		// Return the answer and metadata
-		type RAGResponse struct {
-			Answer                string            `json:"answer"`
-			AnswerableProbability float64           `json:"answerable_probability"`
-			Chunks                []types.ChunkData `json:"chunks"`
+		type Source struct {
+			Text string `json:"text"`
+			URL  string `json:"url"`
 		}
 
+		// Return the answer and metadata
+		type RAGResponse struct {
+			ID        string   `json:"id"`
+			Answer    string   `json:"content"`
+			Sources   []Source `json:"sources"`
+			Sender    string   `json:"sender"`
+			Timestamp string   `json:"timestamp"`
+		}
+
+		var sources []Source
+		for _, chunk := range chunksData {
+			htmlContent := helpers.GetHTMLFromMarkdown(chunk.Text)
+			sources = append(sources, Source{
+				Text: htmlContent,
+				URL:  chunk.SourceURL,
+			})
+		}
+
+		logger.Printf("Answer: %v", response.Answer.Content.Parts)
+
 		ragResponse := RAGResponse{
-			Answer:                response.Answer.Content.Parts[0].Text,
-			AnswerableProbability: response.AnswerableProbability,
-			Chunks:                chunksData,
+			ID:        uuid.New().String(),
+			Answer:    response.Answer.Content.Parts[0].Text,
+			Sources:   sources,
+			Sender:    "bot",
+			Timestamp: time.Now().Format(time.RFC3339),
 		}
 
 		helpers.Encode(w, r, http.StatusOK, ragResponse)
