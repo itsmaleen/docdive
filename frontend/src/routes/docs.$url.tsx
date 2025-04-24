@@ -1,5 +1,4 @@
 import { ChatInterface } from "@/components/chat-interface";
-import { InteractionSteps } from "@/components/interaction-steps";
 import { UrlInputEnhanced } from "@/components/url-input";
 import { createFileRoute } from "@tanstack/react-router";
 import Layout from "@/components/layout";

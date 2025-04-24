@@ -8,11 +8,7 @@ import { useRAGAnswerMutation, type DocumentationPage } from "@/api/queries";
 import type { Message } from "@/lib/chat-api";
 import { addMessage, chatStore } from "@/lib/chat-store";
 import { useStore } from "@tanstack/react-store";
-import {
-  setActiveSection,
-  setActiveTitle,
-  setDocumentationPage,
-} from "@/lib/markdown-store";
+import { setActiveSection, setDocumentationPage } from "@/lib/markdown-store";
 
 interface ChatInterfaceProps {
   documentation: DocumentationPage[] | undefined;
