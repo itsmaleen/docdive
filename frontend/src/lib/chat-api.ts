@@ -6,9 +6,9 @@ export type Message = {
   content: string;
   sender: "user" | "bot";
   timestamp: Date;
+  sources: { text: string; url: string }[];
   showDiagram?: boolean;
   diagramType?: "workflow" | "objects" | "sequence";
-  links?: { text: string; section: string }[];
 };
 
 // Query keys
@@ -29,6 +29,7 @@ const fetchMessages = async (): Promise<Message[]> => {
         "Hello! I can help you understand this API documentation. Ask me anything about the endpoints, parameters, or workflows.",
       sender: "bot",
       timestamp: new Date(),
+      sources: [],
     },
   ];
 };
@@ -135,7 +136,10 @@ const sendMessage = async (message: string): Promise<Message> => {
         timestamp: new Date(),
         showDiagram: botResponse.diagram,
         diagramType: botResponse.diagramType,
-        links: botResponse.links,
+        sources: botResponse.links.map((link) => ({
+          text: link.text,
+          url: link.section,
+        })),
       });
     }, 1500);
   });
