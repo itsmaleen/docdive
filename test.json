@@ -1,46 +1,86 @@
-[
-  {
-    "text": "If you want real-time transcription, you must specify `transcription_options.provider` when [Creating the Bot](https://docs.recall.ai/reference/bot_create). Specifying this parameter will cause transcription to be done, which can be retrieved through the [Get Bot Transcript](https://docs.recall.ai/reference/bot_transcript_list) endpoint.\n\nIf you want to get the transcript pushed to your server, you can also specify the `real_time_transcription.webhook_url` parameter, which will cause the transcription to be sent as a [webhook](https://docs.recall.ai/reference/real-time-transcription#webhooks) to the specified URL.",
-    "source_url": "https://docs.recall.ai/docs/faq",
-    "chunk_path": [
-      "# Bots FAQ",
-      "## Why am I not getting transcription? [](https://docs.recall.ai#why-am-i-not-getting-transcription)"
-    ],
-    "chunk_index": 8
-  },
-  {
-    "text": "# Quickstart [](https://docs.recall.ai#quickstart)\n* * *\n\n1. Start an [instant meeting](https://meet.google.com/) and copy the URL.\n2. Call [Create Bot](https://docs.recall.ai/reference/bot_create) while setting the `transcription_options.provider` to `meeting_captions`.\n   \n   *Take note of the `id` in the response.*\n   \n   cURL\n   \n   ```curl\n   curl --request POST \\\n        --url https://us-east-1.recall.ai/api/v1/bot/ \\\n        --header 'Authorization: Token {RECALL_API_KEY}' \\\n        --header 'accept: application/json' \\\n        --header 'content-type: application/json' \\\n        --data '\n   {\n     \"meeting_url\": {MEETING_URL},\n     \"transcription_options\": {\n       \"provider\": \"meeting_captions\"\n     }\n   }",
-    "source_url": "https://docs.recall.ai/docs/meeting-caption-transcription",
-    "chunk_path": [
-      "# Meeting Caption Transcription",
-      "## Supported platforms [](https://docs.recall.ai#supported-platforms)"
-    ],
-    "chunk_index": 3
-  },
-  {
-    "text": "```\n\n*Enabling real time transcription for calendar bots*\n\nJSON\n\n```Text\n{\n  \"transcription_options\": {\n    \"provider\": \"assembly_ai\"\n  },\n  \"real_time_transcription\": {\n     \"destination_url\": \u003cYOUR_WEBHOOK_URL\u003e\n  }\n}",
-    "source_url": "https://docs.recall.ai/docs/calendar-v1-1",
-    "chunk_path": [
-      "# Configuring Calendar Bots [](https://docs.recall.ai#configuring-calendar-bots)"
-    ],
-    "chunk_index": 6
-  },
-  {
-    "text": "```\n\n*Enabling real time transcription for calendar bots*\n\nJSON\n\n```Text\n{\n  \"transcription_options\": {\n    \"provider\": \"assembly_ai\"\n  },\n  \"real_time_transcription\": {\n     \"destination_url\": \u003cYOUR_WEBHOOK_URL\u003e\n  }\n}",
-    "source_url": "https://docs.recall.ai/docs/calendar-v1-integration-guide",
-    "chunk_path": [
-      "# Configuring Calendar Bots [](https://docs.recall.ai#configuring-calendar-bots)"
-    ],
-    "chunk_index": 6
-  },
-  {
-    "text": "```\n\nSpecifying this parameter will cause transcription to be done, which can be retrieved in-full using [Get Bot Transcript](https://docs.recall.ai/reference/bot_transcript_list).\n\nThis is also a prerequisite to receiving real-time transcription webhook events.\n\n### Specify the `real_time_transcription.destination_url` parameter [](https://docs.recall.ai#specify-the-real_time_transcriptiondestination_url-parameter)\n\u003e ## ☑️\n\u003e \n\u003e To start receiving transcription webhook events, specify the `real_time_transcription.destination_url` parameter in the [Create Bot](https://docs.recall.ai/reference/bot_create) endpoint.\n\nAt this endpoint, you'll want to set up an endpoint to handle incoming transcription events.\n\nFor example, I might have an endpoint at `https://api.my-app.com/webhook/transcription` that verifies incoming webhooks and fires off an event of your own in your application.\n\n### Webhook Verification [](https://docs.recall.ai#webhook-verification)\n**Verifying incoming webhooks**",
-    "source_url": "https://docs.recall.ai/docs/real-time-transcription",
-    "chunk_path": [
-      "# Transcription webhooks [](https://docs.recall.ai#transcription-webhooks)",
-      "## Setup and verification [](https://docs.recall.ai#setup-and-verification)",
-      "### Configure transcription for the bot [](https://docs.recall.ai#configure-transcription-for-the-bot)"
-    ],
-    "chunk_index": 6
-  }
-]
+{
+  "answer": "To build a Zoom bot, you'll need to:\n\n1. Get your Zoom app's credentials from the Zoom Marketplace Dashboard.\n2. Add the credentials to the Recall Dashboard.\n3. Create a bot using the Create Bot API.\n\nHere is a sample cURL command to help you get started:\n\n```\ncurl --request POST \\\n     --url https://us-east-1.recall.ai/api/v1/bot/ \\\n     --header 'Authorization: Token {RECALL_API_KEY}' \\\n     --header 'accept: application/json' \\\n     --header 'content-type: application/json' \\\n     --data '\n{\n  \"meeting_url\": {MEETING_URL},\n  \"bot_name\": \"My First Zoom Bot\",\n  \"automatic_leave\": {\n\t\t\"recording_permission_denied_timeout\": 5 // Leave the call after 10s if denied permissions\n\t}\n}\n'\n```\n\nWhen calling the Create Bot API, you should ensure:\n\n* The meeting URL contains the `tk` parameter\n* The `zoom.user_email` field is set\n\nOnce you have created a bot, you can send it to a meeting using the Send Bot to Meeting API.",
+  "answerable_probability": 0.9997421,
+  "chunks": [
+    {
+      "text": "Add the Zoom app credentials here:\n\n![](https://files.readme.io/6c967bbcf90e60c56d0f5cd1c6fc51b69a9b0949336a8abcd0f98a76d12e58db-CleanShot_2025-03-12_at_10.56.532x.png)\n\n## Step 3: Create a bot [](https://docs.recall.ai#step-3-create-a-bot)\nNow that the dashboard is configured, you can call the [Create Bot](https://docs.recall.ai/reference/bot_create) api\n\nHere is a sample curl to help you get started\n\ncURL\n\n```curl\ncurl --request POST \\\n     --url https://us-east-1.recall.ai/api/v1/bot/ \\\n     --header 'Authorization: Token {RECALL_API_KEY}' \\\n     --header 'accept: application/json' \\\n     --header 'content-type: application/json' \\\n     --data '\n{\n  \"meeting_url\": {MEETING_URL},\n  \"bot_name\": \"My First Zoom Bot\",\n  \"automatic_leave\": {\n\t\t\"recording_permission_denied_timeout\": 5 // Leave the call after 10s if denied permissions\n\t}\n}\n'",
+      "source_url": "https://docs.recall.ai/docs/step-2-create-your-first-zoom-bot",
+      "chunk_path": [
+        "# Step 2: Create your first Zoom bot",
+        "## Step 2: Add the credentials to the Recall Dashboard [](https://docs.recall.ai#step-2-add-the-credentials-to-the-recall-dashboard)"
+      ],
+      "chunk_index": 3
+    },
+    {
+      "text": "When calling the [Create Bot](https://docs.recall.ai/reference/bot_create) api, you should ensure:\n\n- The meeting URL contains the `tk` parameter\n- The `zoom.user_email` field is set\n  \n  - Note: This email does *not* have to match the email that was registered for the event. For simplicity's sake, you can provide a hard-coded email address such as `[email protected]`\n  - This can be provided regardless of whether the meeting is a registration-required Zoom meeting or not.\n\nJSON\n\n```json\n{\n  \"meeting_url\": \"meeting_url\", // Includes `tk` param\n  \"zoom\": {\n    \"user_email\": \"[email protected]\"\n  }\n}",
+      "source_url": "https://docs.recall.ai/docs/step-2-create-your-first-zoom-bot",
+      "chunk_path": [
+        "# Troubleshooting [](https://docs.recall.ai#troubleshooting)",
+        "## Bot can't join registration-required meetings [](https://docs.recall.ai#bot-cant-join-registration-required-meetings)"
+      ],
+      "chunk_index": 9
+    },
+    {
+      "text": "cURL\n\n```curl\ncurl --request POST \\\n     --url https://us-east-1.recall.ai/api/v1/bot/ \\\n     --header \"Authorization: $RECALLAI_API_KEY\" \\\n     --header \"accept: application/json\" \\\n     --header \"content-type: application/json\" \\\n     --data '\n{\n  \"meeting_url\": \"https://zoom.us/j/123456789\",\n  \"variant\": {\n    \"zoom\": \"native\"\n  }\n}\n'",
+      "source_url": "https://docs.recall.ai/docs/native-bots",
+      "chunk_path": [
+        "# How to configure native bots [](https://docs.recall.ai#how-to-configure-native-bots)"
+      ],
+      "chunk_index": 2
+    },
+    {
+      "text": "Let's dive into creating your first Zoom bot! 👇\n\n* * *\n\n## Step 1: Get your Zoom app's credentials [](https://docs.recall.ai#step-1-get-your-zoom-apps-credentials)\nHead back to the [Zoom Marketplace Dashboard](https://marketplace.zoom.us/user/build) and find your app under managed apps\n\nOnce there, find your app in the list of newly created apps. Then click on the **\"Basic Information\"** tab\n\nThere is a section that's called **\"App Credentials\"** where you can find your **development** credentials\n\n![](https://files.readme.io/38d8388851f268a9b17e2cfb1d6bb5d6f1403f53b377d101221bdfec58ccd4f1-CleanShot_2024-12-23_at_15.26.002x.png)\n\n## Step 2: Add the credentials to the Recall Dashboard [](https://docs.recall.ai#step-2-add-the-credentials-to-the-recall-dashboard)\nNext, head to the [Recall dashboard](https://www.recall.ai/login). From there, click on the Zoom SDK Credentials in the sidebar.\n\nAdd the Zoom app credentials here:",
+      "source_url": "https://docs.recall.ai/docs/step-2-create-your-first-zoom-bot",
+      "chunk_path": [
+        "# Step 2: Create your first Zoom bot",
+        "### ⏱️ Estimated Time: 5 minutes [](https://docs.recall.ai#%EF%B8%8F-estimated-time-5-minutes)"
+      ],
+      "chunk_index": 2
+    },
+    {
+      "text": "Zoom Overview\n\nSearch\n\n# Zoom Overview\n[Suggest Edits](https://docs.recall.ai/edit/zoom-overview)\n\nThis section covers everything Zoom bot integrations, from creating and submitting your Zoom marketplace app to building an app around the bot itself\n\n# Zoom Bot Types [](https://docs.recall.ai#zoom-bot-types)\nRecall has two Zoom bot types:\n\nWeb (Default, Recommended)One audio stream with active speaker eventsNativeSeparate audio streams per participant \u0026amp; dial-in participants not supported\n\n# Recording Behavior [](https://docs.recall.ai#recording-behavior)\nUnlike most other meeting platforms, Zoom has formal [requirements](https://docs.recall.ai/docs/zoom-compliance-requirements) that bots must comply with in order to record meetings. In order to be compliant with Zoom, your bots can get recording consent one of two ways:",
+      "source_url": "https://docs.recall.ai/docs/zoom-overview",
+      "chunk_path": null,
+      "chunk_index": 1
+    },
+    {
+      "text": "### [Zoom Setup](https://docs.recall.ai/reference/zoom-overview) [](https://docs.recall.ai#zoom-setup)\nLearn how to start sending bots to Zoom calls!\n\nUpdated 3 months ago\n\n* * *\n\n- [Table of Contents](#)\n- - [1. Initial setup](https://docs.recall.ai#1-initial-setup)\n  - [2. Create a meeting](https://docs.recall.ai#2-create-a-meeting)\n  - [3. Send a bot to the meeting](https://docs.recall.ai#3-send-a-bot-to-the-meeting)\n  - [4. Talk for a little bit](https://docs.recall.ai#4-talk-for-a-little-bit)\n  - [5. End the meeting](https://docs.recall.ai#5-end-the-meeting)\n  - [6. Wait for `done`](https://docs.recall.ai#6-wait-for-done)\n  - [7. Retrieve the recording](https://docs.recall.ai#7-retrieve-the-recording)\n  - [8. Retrieve the transcript](https://docs.recall.ai#8-retrieve-the-transcript)\n  - [View the bot in the Explorer](https://docs.recall.ai#view-the-bot-in-the-explorer)\n  - [Next steps](https://docs.recall.ai#next-steps)",
+      "source_url": "https://docs.recall.ai/docs/quickstart",
+      "chunk_path": [
+        "# Next steps [](https://docs.recall.ai#next-steps)",
+        "### [Asynchronous transcription](https://docs.recall.ai/reference/asynchronous-transcription) [](https://docs.recall.ai#asynchronous-transcription)"
+      ],
+      "chunk_index": 14
+    },
+    {
+      "text": "To enable the bot to join these meetings, you must provide it with a Zoom ZAK token.\n\n\u003e ## 📘\n\u003e \n\u003e ZAK tokens also allow bots to start meetings on behalf of the user. This can be useful if you want the bot to be able to join or start a meeting on behalf of a user, before they've joined.\n\u003e \n\u003e Bots that are provided a ZAK token will also appear as the underlying account of the Zoom user that generated the token. This includes the avatar of the user's profile.\n\n## What is a Zoom ZAK Token and how do I get one? [](https://docs.recall.ai#what-is-a-zoom-zak-token-and-how-do-i-get-one)\nA ZAK token is a access token that can be [generated through the Zoom API](https://developers.zoom.us/docs/meeting-sdk/auth/#start-meetings-and-webinars-with-a-zoom-users-zak-token). These tokens are short-lived, and must be regenerated frequently.\n\n**Note: *any* ZAK token from *any* Zoom user can be used to authenticate the bot in *any* meeting.**",
+      "source_url": "https://docs.recall.ai/docs/zoom-signed-in-bots",
+      "chunk_path": ["# Zoom Signed-in Bots"],
+      "chunk_index": 2
+    },
+    {
+      "text": "Step 2: Create your first Zoom bot\n\nSearch\n\n# Step 2: Create your first Zoom bot\nThe second step to building a Zoom meeting bot is to add your credentials in Recall's dashboard\n\n[Suggest Edits](https://docs.recall.ai/edit/step-2-create-your-first-zoom-bot)\n\n### ⏱️ Estimated Time: 5 minutes [](https://docs.recall.ai#%EF%B8%8F-estimated-time-5-minutes)\nBy this point, you should have:\n\n1. Created a Recall account\n2. Created a Zoom app in Zoom's app marketplace (if not, you can do so by following the steps found [here](https://docs.recall.ai/reference/step-1-create-a-zoom-marketplace-app)) and have your Zoom app's development credentials\n\n\u003e ## 📘 Important Callouts\n\u003e \n\u003e At this stage, zoom bots are only able to join Zoom meetings hosted by the user or organization that owns the Zoom app\n\nLet's dive into creating your first Zoom bot! 👇\n\n* * *",
+      "source_url": "https://docs.recall.ai/docs/step-2-create-your-first-zoom-bot",
+      "chunk_path": null,
+      "chunk_index": 1
+    },
+    {
+      "text": "```json\n// POST /api/v1/bot/\n{\n  \"meeting_url\": \"https://us02web.zoom.us/j/1234567890\",\n  \"bot_name\": \"Recall.ai Notetaker\",\n  \"automatic_video_output\": {\n    \"in_call_recording\": {\n      \"kind\": \"jpeg\",",
+      "source_url": "https://docs.recall.ai/docs/output-video-in-meetings",
+      "chunk_path": [
+        "# Quickstart [](https://docs.recall.ai#quickstart)",
+        "## Outputting the image [](https://docs.recall.ai#outputting-the-image)",
+        "### Method 1: Using `automatic_video_output` [](https://docs.recall.ai#method-1-using-automatic_video_output)"
+      ],
+      "chunk_index": 6
+    },
+    {
+      "text": "# 3. Send a bot to the meeting [](https://docs.recall.ai#3-send-a-bot-to-the-meeting)\nUse the [Create Bot](https://docs.recall.ai/reference/bot_create) endpoint to send a bot to a meeting.\n\n- Swap the `$RECALLAI_API_KEY` placeholder in `Authorization` with your API key\n- Swap the `$RECALLAI_REGION` placeholder with the region associated with your Recall account (e.g. `us-west-2`, `us-east-1`, `eu-central-1`, or `ap-northeast-1`)\n- Swap the placeholder in `$MEETING_URL` with the meeting URL from the previous step.\n\ncURL\n\n```curl\ncurl -X POST https://$RECALLAI_REGION.recall.ai/api/v1/bot \\\n    -H 'Authorization: Token $RECALLAI_API_KEY' \\\n    -H 'Content-Type: application/json' \\\n    -d '\n    {\n      \"meeting_url\": \"$MEETING_URL\",\n      \"bot_name\": \"My Bot\",\n      \"transcription_options\": {\"provider\": \"meeting_captions\"}\n    }'",
+      "source_url": "https://docs.recall.ai/docs/quickstart",
+      "chunk_path": [
+        "# 2. Create a meeting [](https://docs.recall.ai#2-create-a-meeting)"
+      ],
+      "chunk_index": 2
+    }
+  ]
+}

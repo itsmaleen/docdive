@@ -5,8 +5,8 @@ const queryClient = new QueryClient({
     queries: {
       // Default stale time of 5 minutes
       staleTime: 1000 * 60 * 5,
-      // Keep unused data in cache for 1 hour
-      gcTime: 1000 * 60 * 60,
+      // Keep unused data in cache for 24 hours
+      gcTime: 1000 * 60 * 60 * 24,
       // Retry failed requests 3 times
       retry: 3,
       // Refetch on window focus

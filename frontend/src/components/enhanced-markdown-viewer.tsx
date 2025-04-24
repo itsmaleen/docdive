@@ -5,22 +5,20 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
-// @ts-ignore
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   vscDarkPlus,
   oneLight,
-  // @ts-ignore
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { DocumentationSidebar } from "@/components/documentation-sidebar";
 import type { DocumentationPage } from "@/api/queries";
 import { markdownStore } from "@/lib/markdown-store";
 import { useStore } from "@tanstack/react-store";
+import { generateSlug, stringToHTMLCollection } from "@/lib/utils";
 
 interface EnhancedMarkdownViewerProps {
   documentation: DocumentationPage[] | undefined;
   originalUrl?: string;
-  activeSection?: string | null;
   className?: string;
   isLoading?: boolean;
   error?: Error;
@@ -29,7 +27,6 @@ interface EnhancedMarkdownViewerProps {
 export function EnhancedMarkdownViewer({
   documentation,
   originalUrl,
-  activeSection,
   className = "",
   isLoading = false,
   error,
@@ -65,14 +62,142 @@ export function EnhancedMarkdownViewer({
     return () => observer.disconnect();
   }, []);
 
-  // Function to generate IDs for headings
-  const generateSlug = (text: string) => {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "-");
-  };
+  const activeTitle = useStore(markdownStore, (state) => state.activeTitle);
+  useEffect(() => {
+    if (activeTitle && viewerRef.current) {
+      const sectionElement = viewerRef.current.querySelector(
+        `[id*="${activeTitle}"]`
+      );
+      if (sectionElement) {
+        // Scroll to the element with smooth behavior
+        sectionElement.scrollIntoView({ behavior: "smooth", block: "center" });
 
+        // Add highlight effect
+        sectionElement.classList.add(
+          "bg-yellow-100",
+          "dark:bg-yellow-900/30",
+          "scale-105",
+          "transition-all",
+          "duration-500"
+        );
+
+        // Add a border to make it more noticeable
+        sectionElement.classList.add(
+          "border-2",
+          "border-primary",
+          "rounded-lg",
+          "shadow-lg"
+        );
+
+        // Remove the highlight effect after some time
+        setTimeout(() => {
+          sectionElement.classList.remove(
+            "bg-yellow-100",
+            "dark:bg-yellow-900/30",
+            "scale-105",
+            "border-2",
+            "border-primary",
+            "shadow-lg"
+          );
+        }, 3000);
+      }
+    }
+  }, [activeTitle]);
+
+  const activeSection = useStore(markdownStore, (state) => state.activeSection);
+  useEffect(() => {
+    if (!activeSection) return;
+
+    // Get div[data-slot="scroll-area-viewport"] > div > div
+    const activeElement = document.getElementById("markdown-viewer");
+    if (!activeElement) return;
+
+    if (activeElement.children.length === 0) return;
+
+    const activeSectionElements = stringToHTMLCollection(activeSection);
+
+    // Find the longest chain of matching nodeNames
+    let maxLength = 0;
+    let currentLength = 0;
+    let currentStartIndex = 0;
+
+    // For each possible starting position in activeElement.children
+    for (let i = 0; i < activeElement.children.length; i++) {
+      currentLength = 0;
+
+      // Check if we can match a sequence starting at this position
+      for (
+        let j = 0;
+        j < activeSectionElements.length &&
+        i + j < activeElement.children.length;
+        j++
+      ) {
+        if (
+          activeElement.children[i + j].nodeName ===
+          activeSectionElements[j].nodeName
+        ) {
+          currentLength++;
+        } else {
+          break; // Break as soon as we find a mismatch
+        }
+      }
+
+      // Update maxLength if we found a longer chain
+      if (currentLength > maxLength) {
+        maxLength = currentLength;
+        currentStartIndex = i;
+      }
+    }
+
+    // Set the indices based on the longest chain found
+    if (maxLength <= 0) {
+      alert("No matching elements found");
+      return;
+    }
+
+    const startingElementIndex = currentStartIndex;
+    const endingElementIndex = currentStartIndex + maxLength;
+
+    activeElement.children[startingElementIndex].scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+
+    // highlight the elements between startingElementIndex and endingElementIndex
+    for (let i = startingElementIndex; i <= endingElementIndex; i++) {
+      const sectionElement = activeElement.children[i];
+
+      // Add highlight effect
+      sectionElement.classList.add(
+        "bg-yellow-100",
+        "dark:bg-yellow-900/30",
+        "transition-all",
+        "duration-500"
+      );
+    }
+
+    // Add a border to make it more noticeable
+    // sectionElement.classList.add(
+    //   "border-2",
+    //   "border-primary",
+    //   "rounded-lg",
+    //   "shadow-lg"
+    // );
+
+    // Remove highlight after a delay
+
+    // Remove the highlight effect after some time
+    // setTimeout(() => {
+    //   for (let i = startingElementIndex; i <= endingElementIndex; i++) {
+    //     const sectionElement = activeElement.children[i];
+    //     sectionElement.classList.remove(
+    //       "bg-yellow-100",
+    //       "dark:bg-yellow-900/30",
+    //       "scale-105"
+    //     );
+    //   }
+    // }, 3000);
+  }, [activeSection]);
   // Function to handle search
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -150,7 +275,6 @@ export function EnhancedMarkdownViewer({
             isLoading={isLoading}
             error={error}
             onSectionClick={handleSectionClick}
-            activeSection={activeSection}
             className="w-64 flex-shrink-0"
           />
         )}
@@ -171,7 +295,7 @@ export function EnhancedMarkdownViewer({
           </div>
         ) : (
           <ScrollArea className="flex-1" ref={viewerRef}>
-            <div className="p-6">
+            <div id="markdown-viewer" className="p-6">
               {activeTab === "documentation" ? (
                 <ReactMarkdown
                   components={{
