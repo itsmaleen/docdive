@@ -3,11 +3,24 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/itsmaleen/tech-doc-processor/handlers"
 	pb "github.com/itsmaleen/tech-doc-processor/proto/rag-tools"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// loggingMiddleware wraps an http.HandlerFunc with request logging
+func loggingMiddleware(logger *log.Logger, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		logger.Printf("[%s] %s", r.Method, r.URL.Path)
+		defer func() {
+			logger.Printf("[%s] %s | %v", r.Method, r.URL.Path, time.Since(start))
+		}()
+		next(w, r)
+	}
+}
 
 func addRoutes(
 	mux *http.ServeMux,
@@ -16,12 +29,11 @@ func addRoutes(
 	ragToolsServiceClient pb.MarkdownChunkerServiceClient,
 	geminiApiKey string,
 ) {
-	mux.HandleFunc("/scrape", handlers.HandleScrapeDocsRaw(logger, pgxConn))
-	mux.HandleFunc("/scrape/markdown", handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn))
-	mux.HandleFunc("/scrape/markdown/chunk", handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient))
-	mux.HandleFunc("/embeddings", handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey))
-	mux.HandleFunc("/retrieval", handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey))
-	mux.HandleFunc("/rag", handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey))
-
-	mux.HandleFunc("/docs", handlers.HandleLoadDocsMarkdown(logger, pgxConn))
+	mux.HandleFunc("/scrape", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn)))
+	mux.HandleFunc("/scrape/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn)))
+	mux.HandleFunc("/scrape/markdown/chunk", loggingMiddleware(logger, handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient)))
+	mux.HandleFunc("/embeddings", loggingMiddleware(logger, handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey)))
+	mux.HandleFunc("/retrieval", loggingMiddleware(logger, handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey)))
+	mux.HandleFunc("/rag", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
+	mux.HandleFunc("/docs", loggingMiddleware(logger, handlers.HandleLoadDocsMarkdown(logger, pgxConn)))
 }
