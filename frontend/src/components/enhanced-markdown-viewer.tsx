@@ -5,10 +5,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
+// @ts-ignore
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   vscDarkPlus,
   oneLight,
+  // @ts-ignore
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { DocumentationSidebar } from "@/components/documentation-sidebar";
 import type { DocumentationPage } from "@/api/queries";

@@ -1,10 +1,12 @@
 import { BotIcon, UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+// @ts-ignore
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   vscDarkPlus,
   oneLight,
+  // @ts-ignore
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface MessageItemProps {
