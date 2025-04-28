@@ -28,6 +28,8 @@ func addRoutes(
 	pgxConn *pgxpool.Pool,
 	ragToolsServiceClient pb.MarkdownChunkerServiceClient,
 	geminiApiKey string,
+	supabaseS3EndpointURL string,
+	supabaseAnonKey string,
 ) {
 	mux.HandleFunc("/scrape", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn)))
 	mux.HandleFunc("/scrape/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn)))
@@ -36,4 +38,5 @@ func addRoutes(
 	mux.HandleFunc("/retrieval", loggingMiddleware(logger, handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/rag", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/docs", loggingMiddleware(logger, handlers.HandleLoadDocsMarkdown(logger, pgxConn)))
+	mux.HandleFunc("/cleanup", loggingMiddleware(logger, handlers.HandleUpdatePageContentFields(logger, pgxConn)))
 }

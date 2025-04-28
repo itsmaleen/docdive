@@ -60,6 +60,8 @@ func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool) http.Hand
 			return
 		}
 
+		logger.Printf("URL: %s", url)
+
 		// Get the html contend from all pages
 		type Page struct {
 			Title    string `json:"title"`
