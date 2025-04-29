@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,7 +45,7 @@ func HandleQueryDocs(logger *log.Logger, pgxConn *pgxpool.Pool, geminiApiKey str
 	}
 }
 
-func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string) http.HandlerFunc {
+func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow GET requests
 		if r.Method != http.MethodGet {
@@ -78,8 +77,6 @@ func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS
 
 		defer rows.Close()
 
-		storageUrl := fmt.Sprintf("%s/storage/v1/object/public/pages", supabaseS3EndpointURL)
-
 		var pages []Page
 		for rows.Next() {
 			var page Page
@@ -91,22 +88,24 @@ func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS
 				return
 			}
 
-			htmlContent, err := os.ReadFile(fmt.Sprintf("%s/%s", storageUrl, htmlPath))
+			htmlContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, "pages", htmlPath)
 			if err != nil {
-				http.Error(w, "Failed to read html content", http.StatusInternalServerError)
+				logger.Printf("Failed to get html content: %v", err)
+				http.Error(w, "Failed to get html content", http.StatusInternalServerError)
 				return
 			}
 
-			markdownContent, err := os.ReadFile(fmt.Sprintf("%s/%s", storageUrl, markdownPath))
+			markdownContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, "pages", markdownPath)
 			if err != nil {
+				logger.Printf("Failed to read markdown content: %v", err)
 				http.Error(w, "Failed to read markdown content", http.StatusInternalServerError)
 				return
 			}
 
 			// Get the title from the html content
-			page.Title = helpers.GetTitleFromHTML(string(htmlContent))
+			page.Title = helpers.GetTitleFromHTML(htmlContent)
 			// Clean the markdown content by starting from the title
-			page.Markdown = helpers.CleanMarkdownByStartingFromTitle(string(markdownContent), page.Title)
+			page.Markdown = helpers.CleanMarkdownByStartingFromTitle(markdownContent, page.Title)
 			pages = append(pages, page)
 		}
 

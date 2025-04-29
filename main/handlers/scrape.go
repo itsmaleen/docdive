@@ -46,7 +46,7 @@ type URL struct {
 }
 
 // HandleScrapeDocsRaw handles the scraping of documentation from a given URL
-func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -266,7 +266,7 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3En
 			}
 
 			// Add html to storage
-			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseS3EndpointURL, "pages", fmt.Sprintf("%d/%d/page.html", urlID, pageID), string(htmlContent), supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.html", urlID, pageID), string(htmlContent), supabaseAnonKey)
 			if err != nil {
 				logger.Printf("Failed to save page content to storage for %s: %v", urlStr, err)
 				continue
@@ -303,7 +303,7 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3En
 	}
 }
 
-func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -343,7 +343,7 @@ func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool
 
 			cleanedMarkdownContent := CleanMarkdown(markdownContent)
 			// Add markdown to storage
-			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseS3EndpointURL, "pages", fmt.Sprintf("%d/%d/page.md", urlID, pageID), cleanedMarkdownContent, supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.md", urlID, pageID), cleanedMarkdownContent, supabaseAnonKey)
 			if err != nil {
 				logger.Printf("Failed to save page content to storage for %d: %v", pageID, err)
 				continue

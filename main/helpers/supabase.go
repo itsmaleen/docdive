@@ -42,3 +42,22 @@ func SaveFileToStorageFromLocalFile(ctx context.Context, logger *log.Logger, sup
 	logger.Printf("Successfully uploaded local file %s to Supabase storage bucket %s", fileName, bucketName)
 	return nil
 }
+
+func GetFileContentFromStorage(logger *log.Logger, supabaseURL string, bucketName string, path string) (string, error) {
+	url := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", supabaseURL, bucketName, path)
+	response, err := http.Get(url)
+	if err != nil {
+		logger.Printf("failed to create HTTP request: %v", err)
+		return "", fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	defer response.Body.Close()
+
+	content, err := io.ReadAll(response.Body)
+	if err != nil {
+		logger.Printf("failed to read content: %v", err)
+		return "", fmt.Errorf("failed to read content: %v", err)
+	}
+
+	return string(content), nil
+}

@@ -74,16 +74,16 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 		return fmt.Errorf("GEMINI_API_KEY must be set")
 	}
 
-	supabaseS3EndpointURL := getenv("SUPABASE_AWS_ENDPOINT_URL")
-	if supabaseS3EndpointURL == "" {
-		return fmt.Errorf("SUPABASE_AWS_ENDPOINT_URL must be set")
+	supabaseURL := getenv("SUPABASE_URL")
+	if supabaseURL == "" {
+		return fmt.Errorf("SUPABASE_URL must be set")
 	}
 	supabaseAnonKey := getenv("SUPABASE_ANON_KEY")
 	if supabaseAnonKey == "" {
 		return fmt.Errorf("SUPABASE_ANON_KEY must be set")
 	}
 
-	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey, supabaseS3EndpointURL, supabaseAnonKey)
+	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey, supabaseURL, supabaseAnonKey)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("0.0.0.0", "8080"),
