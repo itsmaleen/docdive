@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -80,18 +81,30 @@ func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool) http.Hand
 		var pages []Page
 		for rows.Next() {
 			var page Page
-			var htmlContent string
-			var markdownContent string
-			err := rows.Scan(&page.URL, &markdownContent, &htmlContent)
+			var htmlPath string
+			var markdownPath string
+			err := rows.Scan(&page.URL, &markdownPath, &htmlPath)
 			if err != nil {
 				http.Error(w, "Failed to scan page", http.StatusInternalServerError)
 				return
 			}
 
+			htmlContent, err := os.ReadFile(htmlPath)
+			if err != nil {
+				http.Error(w, "Failed to read html content", http.StatusInternalServerError)
+				return
+			}
+
+			markdownContent, err := os.ReadFile(markdownPath)
+			if err != nil {
+				http.Error(w, "Failed to read markdown content", http.StatusInternalServerError)
+				return
+			}
+
 			// Get the title from the html content
-			page.Title = helpers.GetTitleFromHTML(htmlContent)
+			page.Title = helpers.GetTitleFromHTML(string(htmlContent))
 			// Clean the markdown content by starting from the title
-			page.Markdown = helpers.CleanMarkdownByStartingFromTitle(markdownContent, page.Title)
+			page.Markdown = helpers.CleanMarkdownByStartingFromTitle(string(markdownContent), page.Title)
 			pages = append(pages, page)
 		}
 
