@@ -46,7 +46,7 @@ func HandleQueryDocs(logger *log.Logger, pgxConn *pgxpool.Pool, geminiApiKey str
 	}
 }
 
-func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool) http.HandlerFunc {
+func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow GET requests
 		if r.Method != http.MethodGet {
@@ -78,6 +78,8 @@ func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool) http.Hand
 
 		defer rows.Close()
 
+		storageUrl := fmt.Sprintf("%s/storage/v1/object/public/pages", supabaseS3EndpointURL)
+
 		var pages []Page
 		for rows.Next() {
 			var page Page
@@ -89,13 +91,13 @@ func HandleLoadDocsMarkdown(logger *log.Logger, pgxConn *pgxpool.Pool) http.Hand
 				return
 			}
 
-			htmlContent, err := os.ReadFile(htmlPath)
+			htmlContent, err := os.ReadFile(fmt.Sprintf("%s/%s", storageUrl, htmlPath))
 			if err != nil {
 				http.Error(w, "Failed to read html content", http.StatusInternalServerError)
 				return
 			}
 
-			markdownContent, err := os.ReadFile(markdownPath)
+			markdownContent, err := os.ReadFile(fmt.Sprintf("%s/%s", storageUrl, markdownPath))
 			if err != nil {
 				http.Error(w, "Failed to read markdown content", http.StatusInternalServerError)
 				return
