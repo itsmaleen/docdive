@@ -28,12 +28,15 @@ func addRoutes(
 	pgxConn *pgxpool.Pool,
 	ragToolsServiceClient pb.MarkdownChunkerServiceClient,
 	geminiApiKey string,
+	supabaseS3EndpointURL string,
+	supabaseAnonKey string,
 ) {
-	mux.HandleFunc("/scrape", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn)))
-	mux.HandleFunc("/scrape/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn)))
+	mux.HandleFunc("/scrape", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseS3EndpointURL, supabaseAnonKey)))
+	mux.HandleFunc("/scrape/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn, supabaseS3EndpointURL, supabaseAnonKey)))
 	mux.HandleFunc("/scrape/markdown/chunk", loggingMiddleware(logger, handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient)))
 	mux.HandleFunc("/embeddings", loggingMiddleware(logger, handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/retrieval", loggingMiddleware(logger, handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/rag", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/docs", loggingMiddleware(logger, handlers.HandleLoadDocsMarkdown(logger, pgxConn)))
+	mux.HandleFunc("/cleanup", loggingMiddleware(logger, handlers.HandleUpdatePageContentFields(logger, pgxConn)))
 }

@@ -46,7 +46,7 @@ type URL struct {
 }
 
 // HandleScrapeDocsRaw handles the scraping of documentation from a given URL
-func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool) http.HandlerFunc {
+func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string, supabaseAnonKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -202,8 +202,9 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool) http.Handler
 
 		// Prepare the statement for page insertion
 		_, err = tx.Prepare(r.Context(), "page_insert", `
-			INSERT INTO pages (url_id, html_content)
-			VALUES ($1, $2)
+			INSERT INTO pages (url_id)
+			VALUES ($1)
+			RETURNING id
 		`)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to prepare page insert statement: %v", err), http.StatusInternalServerError)
@@ -257,10 +258,25 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool) http.Handler
 			}
 
 			// Insert the page content
-			_, err = tx.Exec(r.Context(), "page_insert", urlID, string(htmlContent))
+			var pageID int
+			err = tx.QueryRow(r.Context(), "page_insert", urlID).Scan(&pageID)
 			if err != nil {
 				logger.Printf("Failed to insert page content for %s: %v", urlStr, err)
 				continue
+			}
+
+			// Add html to storage
+			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseS3EndpointURL, "pages", fmt.Sprintf("%d/%d/page.html", urlID, pageID), string(htmlContent), supabaseAnonKey)
+			if err != nil {
+				logger.Printf("Failed to save page content to storage for %s: %v", urlStr, err)
+				continue
+			} else {
+				// Update the page content with the storage path
+				_, err = tx.Exec(r.Context(), "UPDATE pages SET html_content = $1 WHERE id = $2", fmt.Sprintf("%d/%d/page.html", urlID, pageID), pageID)
+				if err != nil {
+					logger.Printf("Failed to update page content with storage path for %s: %v", urlStr, err)
+					continue
+				}
 			}
 
 			// Mark the URL as scraped
@@ -287,7 +303,7 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool) http.Handler
 	}
 }
 
-func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool) http.HandlerFunc {
+func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string, supabaseAnonKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -296,20 +312,21 @@ func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool
 		}
 
 		// Get values from urls table where markdown_content is null
-		rows, err := pgxConn.Query(r.Context(), "SELECT pages.id, html_content, url FROM pages JOIN urls ON pages.url_id = urls.id WHERE markdown_content IS NULL")
+		rows, err := pgxConn.Query(r.Context(), "SELECT pages.id, html_content, url, urls.id FROM pages JOIN urls ON pages.url_id = urls.id WHERE markdown_content IS NULL")
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to query URLs: %v", err), http.StatusInternalServerError)
 			return
 		}
 		defer rows.Close()
 
-		markdownContents := make(map[int]string)
+		totalRows := 0
 
 		for rows.Next() {
-			var id int
+			var pageID int
 			var htmlContent string
 			var url string
-			err = rows.Scan(&id, &htmlContent, &url)
+			var urlID int
+			err = rows.Scan(&pageID, &htmlContent, &url, &urlID)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to scan URL: %v", err), http.StatusInternalServerError)
 				return
@@ -324,21 +341,25 @@ func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool
 
 			logger.Printf("Successfully converted HTML to Markdown: %s\n\n%s\n\n", url, markdownContent)
 
-			markdownContents[id] = markdownContent
-		}
-
-		// Update the pages table with the new markdown content
-		for id, markdownContent := range markdownContents {
 			cleanedMarkdownContent := CleanMarkdown(markdownContent)
-			_, err = pgxConn.Exec(r.Context(), "UPDATE pages SET markdown_content = $1 WHERE id = $2", cleanedMarkdownContent, id)
+			// Add markdown to storage
+			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseS3EndpointURL, "pages", fmt.Sprintf("%d/%d/page.md", urlID, pageID), cleanedMarkdownContent, supabaseAnonKey)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to update page %d: %v", id, err), http.StatusInternalServerError)
+				logger.Printf("Failed to save page content to storage for %d: %v", pageID, err)
+				continue
+			}
+
+			_, err = pgxConn.Exec(r.Context(), "UPDATE pages SET markdown_content = $1 WHERE id = $2", fmt.Sprintf("%d/%d/page.md", urlID, pageID), pageID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to update page %d: %v", pageID, err), http.StatusInternalServerError)
 				return
 			}
+
+			totalRows++
 		}
 
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Successfully updated %d URLs", len(markdownContents))
+		fmt.Fprintf(w, "Successfully updated %d URLs", totalRows)
 	}
 }
 
