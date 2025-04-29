@@ -13,11 +13,11 @@ func Server(
 	pgxConn *pgxpool.Pool,
 	ragToolsServiceClient pb.MarkdownChunkerServiceClient,
 	geminiApiKey string,
-	supabaseS3EndpointURL string,
+	supabaseURL string,
 	supabaseAnonKey string,
 ) http.Handler {
 	mux := http.NewServeMux()
-	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseS3EndpointURL, supabaseAnonKey)
+	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseURL, supabaseAnonKey)
 
 	var handler http.Handler = mux
 	// add middleware if needed

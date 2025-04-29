@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Println("Moving HTML content to storage")
 
@@ -32,7 +32,7 @@ func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, s
 			}
 
 			// save the html content to the storage
-			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseS3EndpointURL, "pages", fmt.Sprintf("%d/%d/page.html", urlId, id), htmlContent, supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.html", urlId, id), htmlContent, supabaseAnonKey)
 			if err != nil {
 				logger.Println("Error saving HTML content:", err)
 			} else {
@@ -46,7 +46,7 @@ func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, s
 	}
 }
 
-func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseS3EndpointURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Println("Moving HTML content to storage")
 
@@ -68,7 +68,7 @@ func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Poo
 			}
 
 			// save the html content to the storage
-			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseS3EndpointURL, "pages", fmt.Sprintf("%d/%d/page.md", urlId, id), markdownContent, supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.md", urlId, id), markdownContent, supabaseAnonKey)
 			if err != nil {
 				logger.Println("Error saving markdown content:", err)
 			} else {
