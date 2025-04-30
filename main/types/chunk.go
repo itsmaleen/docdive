@@ -21,3 +21,16 @@ type Chunk struct {
 	Text     string        `json:"text"`
 	Metadata ChunkMetadata `json:"metadata"`
 }
+
+type Source struct {
+	Text string `json:"text"`
+	URL  string `json:"url"`
+}
+
+type RAGResponse struct {
+	ID        string   `json:"id"`
+	Answer    string   `json:"content"`
+	Sources   []Source `json:"sources"`
+	Sender    string   `json:"sender"`
+	Timestamp string   `json:"timestamp"`
+}

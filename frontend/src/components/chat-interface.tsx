@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DiagramSection } from "./diagram-section";
 import { MessageItem } from "./message-item";
-import { useRAGAnswerMutation, type DocumentationPage } from "@/api/queries";
+import {
+  useRAGAnswerMutation,
+  useRAGChunksMutation,
+  type DocumentationPage,
+} from "@/api/queries";
 import type { Message } from "@/lib/chat-api";
 import { addMessage, chatStore } from "@/lib/chat-store";
 import { useStore } from "@tanstack/react-store";
@@ -21,6 +25,8 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
 
   const messages = useStore(chatStore, (state) => state.messages);
 
+  const { mutate: fetchRAGChunks, isPending: isFetchingRAGChunks } =
+    useRAGChunksMutation();
   const { mutate: sendMessage, isPending: isSending } = useRAGAnswerMutation();
 
   // Scroll to bottom when messages change
@@ -44,6 +50,7 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
 
     addMessage(userMessage);
 
+    fetchRAGChunks(input);
     // Send the message using React Query mutation
     sendMessage(input);
 

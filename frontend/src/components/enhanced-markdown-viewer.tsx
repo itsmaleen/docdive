@@ -30,7 +30,6 @@ export function EnhancedMarkdownViewer({
   documentation,
   originalUrl,
   className = "",
-  isLoading = false,
   error,
 }: EnhancedMarkdownViewerProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -42,6 +41,12 @@ export function EnhancedMarkdownViewer({
   const markdown = useStore(
     markdownStore,
     (state) => state.documentationPage?.markdown
+  );
+
+  const isLoading = useStore(markdownStore, (state) => state.isLoading);
+  const isLoadingContent = useStore(
+    markdownStore,
+    (state) => state.isLoadingContent
   );
 
   // Check for dark mode
@@ -232,7 +237,7 @@ export function EnhancedMarkdownViewer({
         >
           <TabsList>
             <TabsTrigger value="documentation">Documentation</TabsTrigger>
-            <TabsTrigger value="raw">Raw Markdown</TabsTrigger>
+            {/* <TabsTrigger value="raw">Raw Markdown</TabsTrigger> */}
           </TabsList>
         </Tabs>
 
@@ -281,7 +286,7 @@ export function EnhancedMarkdownViewer({
           />
         )}
 
-        {isLoading ? (
+        {isLoading || isLoadingContent ? (
           <div className="flex-1 flex items-center justify-center p-6">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>

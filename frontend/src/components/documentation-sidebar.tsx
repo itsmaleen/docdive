@@ -8,11 +8,16 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { DocumentationPage } from "@/api/queries";
+import {
+  useDocumentationPageMutation,
+  type DocumentationPage,
+} from "@/api/queries";
 import {
   setDocumentationPage,
   markdownStore,
   setActiveTitle,
+  setLoading,
+  setLoadingContent,
 } from "@/lib/markdown-store";
 import { useStore } from "@tanstack/react-store";
 import { generateSlug } from "@/lib/utils";
@@ -57,6 +62,14 @@ export function DocumentationSidebar({
     markdownStore,
     (state) => state.documentationPage?.markdown || ""
   );
+
+  const { mutate: fetchDocumentationPage, isPending: isFetching } =
+    useDocumentationPageMutation();
+
+  useEffect(() => {
+    console.log("isFetching", isFetching);
+    setLoadingContent(isFetching);
+  }, [isFetching]);
 
   // Parse markdown to extract headings and build a table of contents
   useEffect(() => {
@@ -296,7 +309,15 @@ export function DocumentationSidebar({
                 <Button
                   variant="ghost"
                   className="w-full justify-between h-auto min-h-8 px-2 py-1.5 whitespace-normal"
-                  onClick={() => setDocumentationPage(page)}
+                  onClick={() => {
+                    if (page.markdown && page.markdown.length > 0) {
+                      setDocumentationPage(page);
+                      return;
+                    }
+                    if (!isFetching) {
+                      fetchDocumentationPage(page.id);
+                    }
+                  }}
                 >
                   <span className="text-left break-words pr-2">
                     {page.title}

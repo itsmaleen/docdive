@@ -5,6 +5,7 @@ import type { DocumentationPage } from "@/api/queries";
 export const markdownStore = new Store({
   documentationPage: null as DocumentationPage | null,
   isLoading: false,
+  isLoadingContent: false,
   error: null as Error | null,
   activeTitle: null as string | null,
   activeSection: null as string | null,
@@ -25,6 +26,12 @@ export const setLoading = (isLoading: boolean) => {
   }));
 };
 
+export const setLoadingContent = (isLoadingContent: boolean) => {
+  markdownStore.setState((state) => ({
+    ...state,
+    isLoadingContent,
+  }));
+};
 export const setError = (error: Error | null) => {
   markdownStore.setState((state) => ({
     ...state,
