@@ -8,6 +8,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// corsMiddleware adds CORS headers to allow requests from specified origins
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "https://fenn.pages.dev")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func Server(
 	logger *log.Logger,
 	pgxConn *pgxpool.Pool,
@@ -20,6 +38,7 @@ func Server(
 	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseURL, supabaseAnonKey)
 
 	var handler http.Handler = mux
-	// add middleware if needed
+	// Add CORS middleware
+	handler = corsMiddleware(handler)
 	return handler
 }
