@@ -165,11 +165,15 @@ func HandleRAGQuery(logger *log.Logger, pgxConn *pgxpool.Pool, geminiApiKey stri
 			})
 		}
 
+		answerText := "Unable to generate answer"
+		if len(response.Answer.Content.Parts) > 0 {
+			answerText = response.Answer.Content.Parts[0].Text
+		}
 		logger.Printf("Answer: %v", response.Answer.Content.Parts)
 
 		ragResponse := types.RAGResponse{
 			ID:        uuid.New().String(),
-			Answer:    response.Answer.Content.Parts[0].Text,
+			Answer:    answerText,
 			Sources:   sources,
 			Sender:    "bot",
 			Timestamp: time.Now().Format(time.RFC3339),

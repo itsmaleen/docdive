@@ -25,8 +25,7 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
 
   const messages = useStore(chatStore, (state) => state.messages);
 
-  const { mutate: fetchRAGChunks, isPending: isFetchingRAGChunks } =
-    useRAGChunksMutation();
+  const { mutate: fetchRAGChunks } = useRAGChunksMutation();
   const { mutate: sendMessage, isPending: isSending } = useRAGAnswerMutation();
 
   // Scroll to bottom when messages change

@@ -16,7 +16,6 @@ import {
   setDocumentationPage,
   markdownStore,
   setActiveTitle,
-  setLoading,
   setLoadingContent,
 } from "@/lib/markdown-store";
 import { useStore } from "@tanstack/react-store";

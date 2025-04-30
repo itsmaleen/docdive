@@ -27,11 +27,7 @@ function RouteComponent() {
 
   setLoading(isLoadingPaths);
 
-  const {
-    data,
-    isLoading: isLoadingDocs,
-    error: errorDocs,
-  } = useDocumentationQuery(documentationUrl);
+  const { data } = useDocumentationQuery(documentationUrl);
 
   // First use documentationPaths to show the paths / titles
   // Once data is loaded, use documentation to show the content
