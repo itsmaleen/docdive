@@ -2,9 +2,14 @@ import { ChatInterface } from "@/components/chat-interface";
 import { UrlInputEnhanced } from "@/components/url-input";
 import { createFileRoute } from "@tanstack/react-router";
 import Layout from "@/components/layout";
-import { useState } from "react";
-import { useDocumentationQuery } from "@/api/queries";
+import { useEffect, useState } from "react";
+import {
+  useDocumentationPathsQuery,
+  useDocumentationQuery,
+  type DocumentationPage,
+} from "@/api/queries";
 import { EnhancedMarkdownViewer } from "@/components/enhanced-markdown-viewer";
+import { setLoading } from "@/lib/markdown-store";
 
 export const Route = createFileRoute("/docs/$url")({
   component: RouteComponent,
@@ -15,10 +20,32 @@ function RouteComponent() {
   const [documentationUrl] = useState<string>(url);
 
   const {
-    data: documentation,
-    isLoading,
-    error,
+    data: documentationPaths,
+    isLoading: isLoadingPaths,
+    error: errorPaths,
+  } = useDocumentationPathsQuery(documentationUrl);
+
+  setLoading(isLoadingPaths);
+
+  const {
+    data,
+    isLoading: isLoadingDocs,
+    error: errorDocs,
   } = useDocumentationQuery(documentationUrl);
+
+  // First use documentationPaths to show the paths / titles
+  // Once data is loaded, use documentation to show the content
+
+  const [documentation, setDocumentation] = useState<DocumentationPage[]>([]);
+
+  useEffect(() => {
+    if (data) {
+      setDocumentation(data);
+      console.log("set documentation");
+    } else if (documentationPaths) {
+      setDocumentation(documentationPaths);
+    }
+  }, [data, documentationPaths]);
 
   return (
     <Layout>
@@ -30,8 +57,7 @@ function RouteComponent() {
             documentation={documentation}
             originalUrl={documentationUrl}
             className="w-full md:w-2/3"
-            isLoading={isLoading}
-            error={error || undefined}
+            error={errorPaths || undefined}
           />
 
           <div className="w-full md:w-1/3">

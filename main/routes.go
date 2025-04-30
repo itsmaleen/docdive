@@ -37,6 +37,8 @@ func addRoutes(
 	mux.HandleFunc("/embeddings", loggingMiddleware(logger, handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/retrieval", loggingMiddleware(logger, handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey)))
 	mux.HandleFunc("/rag", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
-	mux.HandleFunc("/docs", loggingMiddleware(logger, handlers.HandleLoadDocsMarkdown(logger, pgxConn, supabaseURL)))
-	mux.HandleFunc("/cleanup", loggingMiddleware(logger, handlers.HandleUpdatePageContentFields(logger, pgxConn)))
+	mux.HandleFunc("/docs/paths", loggingMiddleware(logger, handlers.HandleLoadDocPaths(logger, pgxConn)))
+	mux.HandleFunc("/docs", loggingMiddleware(logger, handlers.HandleLoadDocsContent(logger, pgxConn, supabaseURL)))
+	mux.HandleFunc("/docs/page", loggingMiddleware(logger, handlers.HandleLoadPageContent(logger, pgxConn, supabaseURL)))
+	mux.HandleFunc("/cleanup", loggingMiddleware(logger, handlers.HandleUpdatePageTitle(logger, pgxConn, supabaseURL)))
 }
