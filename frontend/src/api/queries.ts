@@ -17,6 +17,9 @@ const fetchDocumentationPage = async (
   const response = await fetch(
     `${import.meta.env.VITE_API_URL}/api/docs/pages?id=${encodeURIComponent(id)}`
   );
+  if (!response.ok) {
+    throw new Error("Failed to fetch documentation page");
+  }
   return response.json();
 };
 

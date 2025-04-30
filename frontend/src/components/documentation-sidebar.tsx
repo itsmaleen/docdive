@@ -310,9 +310,11 @@ export function DocumentationSidebar({
                   variant="ghost"
                   className="w-full justify-between h-auto min-h-8 px-2 py-1.5 whitespace-normal"
                   onClick={() => {
-                    if (page.markdown != "") {
+                    if (page.markdown && page.markdown.length > 0) {
                       setDocumentationPage(page);
-                    } else {
+                      return;
+                    }
+                    if (!isFetching) {
                       fetchDocumentationPage(page.id);
                     }
                   }}
