@@ -31,14 +31,21 @@ func addRoutes(
 	supabaseURL string,
 	supabaseAnonKey string,
 ) {
-	mux.HandleFunc("/scrape", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseURL, supabaseAnonKey)))
-	mux.HandleFunc("/scrape/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn, supabaseURL, supabaseAnonKey)))
-	mux.HandleFunc("/scrape/markdown/chunk", loggingMiddleware(logger, handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient)))
-	mux.HandleFunc("/embeddings", loggingMiddleware(logger, handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey)))
-	mux.HandleFunc("/retrieval", loggingMiddleware(logger, handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey)))
-	mux.HandleFunc("/rag", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
-	mux.HandleFunc("/docs/paths", loggingMiddleware(logger, handlers.HandleLoadDocPaths(logger, pgxConn)))
-	mux.HandleFunc("/docs", loggingMiddleware(logger, handlers.HandleLoadDocsContent(logger, pgxConn, supabaseURL)))
-	mux.HandleFunc("/docs/page", loggingMiddleware(logger, handlers.HandleLoadPageContent(logger, pgxConn, supabaseURL)))
-	mux.HandleFunc("/cleanup", loggingMiddleware(logger, handlers.HandleUpdatePageTitle(logger, pgxConn, supabaseURL)))
+	// Documentation Routes
+	mux.HandleFunc("/api/docs/list", loggingMiddleware(logger, handlers.HandleLoadDocPaths(logger, pgxConn)))
+	mux.HandleFunc("/api/docs/content", loggingMiddleware(logger, handlers.HandleLoadDocsContent(logger, pgxConn, supabaseURL)))
+	mux.HandleFunc("/api/docs/pages", loggingMiddleware(logger, handlers.HandleLoadPageContent(logger, pgxConn, supabaseURL)))
+
+	// Scraping Routes
+	mux.HandleFunc("/api/scraper/raw", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseURL, supabaseAnonKey)))
+	mux.HandleFunc("/api/scraper/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn, supabaseURL, supabaseAnonKey)))
+	mux.HandleFunc("/api/scraper/chunk", loggingMiddleware(logger, handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient)))
+
+	// RAG Routes
+	mux.HandleFunc("/api/rag/embeddings", loggingMiddleware(logger, handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey)))
+	mux.HandleFunc("/api/rag/retrieve", loggingMiddleware(logger, handlers.HandleRetrievalQuery(logger, pgxConn, geminiApiKey)))
+	mux.HandleFunc("/api/rag/query", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
+
+	// Maintenance Routes
+	mux.HandleFunc("/api/maintenance/cleanup-titles", loggingMiddleware(logger, handlers.HandleUpdatePageTitle(logger, pgxConn, supabaseURL)))
 }

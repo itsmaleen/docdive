@@ -15,7 +15,7 @@ const fetchDocumentationPage = async (
   id: string
 ): Promise<DocumentationPage> => {
   const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/docs/page?id=${encodeURIComponent(id)}`
+    `${import.meta.env.VITE_API_URL}/api/docs/pages?id=${encodeURIComponent(id)}`
   );
   return response.json();
 };
@@ -44,7 +44,7 @@ const fetchDocumentationPaths = async (
   url: string
 ): Promise<DocumentationPage[]> => {
   const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/docs/paths?url=${encodeURIComponent(url)}`
+    `${import.meta.env.VITE_API_URL}/api/docs/list?url=${encodeURIComponent(url)}`
   );
   if (!response.ok) {
     throw new Error("Failed to fetch documentation paths");
@@ -64,7 +64,7 @@ const fetchDocumentation = async (
   url: string
 ): Promise<DocumentationPage[]> => {
   const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/docs?url=${encodeURIComponent(url)}`
+    `${import.meta.env.VITE_API_URL}/api/docs/content?url=${encodeURIComponent(url)}`
   );
   if (!response.ok) {
     throw new Error("Failed to fetch documentation");
@@ -80,14 +80,53 @@ export const useDocumentationQuery = (url: string) => {
   });
 };
 
-const fetchRAGAnswer = async (query: string): Promise<Message> => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/rag`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+const fetchRAGChunks = async (query: string): Promise<Message> => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/api/rag/retrieve`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `query=${encodeURIComponent(query)}`,
+    }
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch RAG chunks");
+  }
+  return response.json();
+};
+
+export const useRAGChunksMutation = () => {
+  return useMutation({
+    mutationFn: (query: string) => fetchRAGChunks(query),
+    onSuccess: (data) => {
+      const message: Message = {
+        id: new Date().toISOString(),
+        content: "Here are the chunks that I found relevant to your query.",
+        sender: "bot",
+        timestamp: new Date(),
+        sources: data.sources,
+      };
+      addMessage(message);
     },
-    body: `query=${encodeURIComponent(query)}`,
+    onError: (error) => {
+      console.error("Error fetching RAG chunks", error);
+    },
   });
+};
+
+const fetchRAGAnswer = async (query: string): Promise<Message> => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/api/rag/query`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `query=${encodeURIComponent(query)}`,
+    }
+  );
   if (!response.ok) {
     throw new Error("Failed to fetch RAG answer");
   }
