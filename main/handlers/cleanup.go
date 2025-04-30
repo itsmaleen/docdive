@@ -113,3 +113,40 @@ func HandleUpdatePageContentFields(logger *log.Logger, pgxConn *pgxpool.Pool) ht
 		}
 	}
 }
+
+func HandleUpdatePageTitle(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Println("Updating page content fields")
+
+		// get all html content from the database
+		rows, err := pgxConn.Query(context.Background(), "SELECT id, html_content FROM pages")
+		if err != nil {
+			logger.Println("Error getting content:", err)
+			http.Error(w, "Error getting content", http.StatusInternalServerError)
+			return
+		}
+
+		for rows.Next() {
+			var id int
+			var path string
+			err = rows.Scan(&id, &path)
+			if err != nil {
+				logger.Println("Error scanning content:", err)
+			}
+
+			htmlContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, "pages", path)
+			if err != nil {
+				logger.Println("Error getting content:", err)
+				http.Error(w, "Error getting content from storage", http.StatusInternalServerError)
+			}
+
+			title := helpers.GetTitleFromHTML(htmlContent)
+
+			// update the page content fields
+			_, err = pgxConn.Exec(context.Background(), "UPDATE pages SET title = $1 WHERE id = $2", title, id)
+			if err != nil {
+				logger.Println("Error updating page title:", err)
+			}
+		}
+	}
+}

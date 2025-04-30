@@ -1,12 +1,64 @@
 import type { Message } from "@/lib/chat-api";
 import { addMessage } from "@/lib/chat-store";
+import { setDocumentationPage } from "@/lib/markdown-store";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 export interface DocumentationPage {
+  id: string;
   url: string;
   markdown: string;
   title: string;
+  path: string;
 }
+
+const fetchDocumentationPage = async (
+  id: string
+): Promise<DocumentationPage> => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/docs/page?id=${encodeURIComponent(id)}`
+  );
+  return response.json();
+};
+
+export const useDocumentationPageMutation = () => {
+  return useMutation({
+    mutationFn: (id: string) => fetchDocumentationPage(id),
+    onSuccess: (data) => {
+      setDocumentationPage(data);
+    },
+    onError: (error) => {
+      console.error("Error fetching documentation page", error);
+      const errorMessageMarkdown: DocumentationPage = {
+        id: "",
+        url: "",
+        markdown: "An error occurred while fetching the documentation page.",
+        title: "",
+        path: "",
+      };
+      setDocumentationPage(errorMessageMarkdown);
+    },
+  });
+};
+
+const fetchDocumentationPaths = async (
+  url: string
+): Promise<DocumentationPage[]> => {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/docs/paths?url=${encodeURIComponent(url)}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch documentation paths");
+  }
+  return response.json();
+};
+
+export const useDocumentationPathsQuery = (url: string) => {
+  return useQuery({
+    queryKey: ["documentation-paths", url],
+    queryFn: () => fetchDocumentationPaths(url),
+    enabled: !!url,
+  });
+};
 
 const fetchDocumentation = async (
   url: string

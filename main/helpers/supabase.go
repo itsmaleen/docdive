@@ -59,5 +59,7 @@ func GetFileContentFromStorage(logger *log.Logger, supabaseURL string, bucketNam
 		return "", fmt.Errorf("failed to read content: %v", err)
 	}
 
+	logger.Printf("Got content for %s", path)
+
 	return string(content), nil
 }
