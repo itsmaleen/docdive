@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -151,4 +152,55 @@ func GetHTMLFromMarkdown(markdown string) string {
 	}
 
 	return html.String()
+}
+
+func GetURLsFromHTML(logger *log.Logger, htmlContent string, baseURL string) []string {
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		logger.Printf("Failed to parse HTML: %v", err)
+		return []string{}
+	}
+	// Double check that the baseURL doesn't already have a trailing slash
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL = baseURL + "/"
+	}
+
+	var urls []string
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if attr.Key == "href" {
+					url := attr.Val
+					// Remove fragment (everything after #)
+					if idx := strings.Index(url, "#"); idx != -1 {
+						url = url[:idx]
+					}
+					// Remove query parameters (everything after ?)
+					if idx := strings.Index(url, "?"); idx != -1 {
+						url = url[:idx]
+					}
+
+					// Skip if URL already has a protocol or is empty
+					if strings.HasPrefix(url, "http") || url == "" {
+						logger.Printf("Skipping URL - has protocol or is empty")
+						continue
+					}
+
+					// Add baseURL for relative paths
+					if strings.HasPrefix(url, "/") {
+						url = baseURL + url
+					} else if !strings.Contains(url, "://") {
+						url = baseURL + url
+					}
+					urls = append(urls, url)
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
+	return urls
 }

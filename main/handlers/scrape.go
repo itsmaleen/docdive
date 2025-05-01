@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
@@ -46,7 +47,7 @@ type URL struct {
 }
 
 // HandleScrapeDocsRaw handles the scraping of documentation from a given URL
-func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -84,6 +85,7 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL 
 		}
 		resp, err := client.Get(sitemapURL)
 		if err != nil {
+			logger.Printf("Failed to fetch sitemap: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to fetch sitemap: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -168,6 +170,8 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL 
 			var urlSet URLSet
 			err = xml.Unmarshal(body, &urlSet)
 			if err != nil {
+				logger.Printf("Failed to parse sitemap: %v", err)
+				logger.Printf("Sitemap content: %s", string(body))
 				http.Error(w, fmt.Sprintf("Failed to parse sitemap: %v", err), http.StatusInternalServerError)
 				return
 			}
@@ -211,82 +215,20 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL 
 			return
 		}
 
+		urlsFoundInPagesMap := make(map[string]bool)
+
 		// Process each URL
-		for _, urlStr := range urls {
-			// Insert the URL and get its ID
-			var urlID int
-			err = tx.QueryRow(r.Context(), "url_insert", sourceID, urlStr).Scan(&urlID)
-			if err != nil {
-				if err.Error() == "no rows in result set" {
-					// URL already exists, get its ID
-					err = tx.QueryRow(r.Context(), "SELECT id FROM urls WHERE url = $1", urlStr).Scan(&urlID)
-					if err != nil {
-						logger.Printf("Failed to get ID for existing URL %s: %v", urlStr, err)
-						continue
-					}
-				} else {
-					logger.Printf("Failed to insert URL %s: %v", urlStr, err)
-					continue
-				}
-			}
+		processAndScrapeURLs(urls, tx, r, sourceID, logger, urlsFoundInPagesMap, client, sourceURL, supabaseURL, supabaseAnonKey, supabaseStorageBucket)
 
-			// Skip if URL is already scraped
-			var scraped bool
-			err = tx.QueryRow(r.Context(), "SELECT scraped FROM urls WHERE id = $1", urlID).Scan(&scraped)
-			if err != nil {
-				logger.Printf("Failed to check if URL %s is scraped: %v", urlStr, err)
-				continue
+		var urlsFoundInPages []string
+		for url, found := range urlsFoundInPagesMap {
+			if found {
+				urlsFoundInPages = append(urlsFoundInPages, url)
 			}
-			if scraped {
-				logger.Printf("URL %s already scraped, skipping", urlStr)
-				continue
-			}
-
-			// Fetch the page content
-			resp, err := client.Get(urlStr)
-			if err != nil {
-				logger.Printf("Failed to fetch page %s: %v", urlStr, err)
-				continue
-			}
-
-			// Read the page content
-			htmlContent, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				logger.Printf("Failed to read page %s: %v", urlStr, err)
-				continue
-			}
-
-			// Insert the page content
-			var pageID int
-			err = tx.QueryRow(r.Context(), "page_insert", urlID).Scan(&pageID)
-			if err != nil {
-				logger.Printf("Failed to insert page content for %s: %v", urlStr, err)
-				continue
-			}
-
-			// Add html to storage
-			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.html", urlID, pageID), string(htmlContent), supabaseAnonKey)
-			if err != nil {
-				logger.Printf("Failed to save page content to storage for %s: %v", urlStr, err)
-				continue
-			} else {
-				// Update the page content with the storage path
-				_, err = tx.Exec(r.Context(), "UPDATE pages SET html_content = $1 WHERE id = $2", fmt.Sprintf("%d/%d/page.html", urlID, pageID), pageID)
-				if err != nil {
-					logger.Printf("Failed to update page content with storage path for %s: %v", urlStr, err)
-					continue
-				}
-			}
-
-			// Mark the URL as scraped
-			_, err = tx.Exec(r.Context(), "UPDATE urls SET scraped = TRUE WHERE id = $1", urlID)
-			if err != nil {
-				logger.Printf("Failed to mark URL %s as scraped: %v", urlStr, err)
-				continue
-			}
-
-			logger.Printf("Successfully scraped and saved: %s", urlStr)
+		}
+		if len(urlsFoundInPages) > 0 {
+			logger.Printf("Found %d URLs in pages", len(urlsFoundInPages))
+			processAndScrapeURLs(urlsFoundInPages, tx, r, sourceID, logger, urlsFoundInPagesMap, client, sourceURL, supabaseURL, supabaseAnonKey, supabaseStorageBucket)
 		}
 
 		// Commit the transaction
@@ -299,11 +241,102 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL 
 		// Return success response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status": "success", "message": "Documentation scraping completed", "urls_processed": %d}`, len(urls))
+		fmt.Fprintf(w, `{"status": "success", "message": "Documentation scraping completed", "urls_processed": %d}`, len(urls)+len(urlsFoundInPages))
 	}
 }
 
-func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
+func processAndScrapeURLs(urls []string, tx pgx.Tx, r *http.Request, sourceID int, logger *log.Logger, urlsFoundInPages map[string]bool, client *http.Client, sourceURL string, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) {
+	for _, urlStr := range urls {
+		// Insert the URL and get its ID
+		var urlID int
+		err := tx.QueryRow(r.Context(), "url_insert", sourceID, urlStr).Scan(&urlID)
+		if err != nil {
+			if err.Error() == "no rows in result set" {
+				// URL already exists, get its ID
+				err = tx.QueryRow(r.Context(), "SELECT id FROM urls WHERE url = $1", urlStr).Scan(&urlID)
+				if err != nil {
+					logger.Printf("Failed to get ID for existing URL %s: %v", urlStr, err)
+					continue
+				}
+			} else {
+				logger.Printf("Failed to insert URL %s: %v", urlStr, err)
+				continue
+			}
+		}
+
+		urlsFoundInPages[urlStr] = false
+
+		// Skip if URL is already scraped
+		var scraped bool
+		err = tx.QueryRow(r.Context(), "SELECT scraped FROM urls WHERE id = $1", urlID).Scan(&scraped)
+		if err != nil {
+			logger.Printf("Failed to check if URL %s is scraped: %v", urlStr, err)
+			continue
+		}
+		if scraped {
+			logger.Printf("URL %s already scraped, skipping", urlStr)
+			continue
+		}
+
+		// Fetch the page content
+		resp, err := client.Get(urlStr)
+		if err != nil {
+			logger.Printf("Failed to fetch page %s: %v", urlStr, err)
+			continue
+		} else {
+			logger.Printf("Successfully fetched page %s", urlStr)
+		}
+
+		// Read the page content
+		htmlContent, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			logger.Printf("Failed to read page %s: %v", urlStr, err)
+			continue
+		}
+
+		urls := helpers.GetURLsFromHTML(logger, string(htmlContent), urlStr)
+
+		for _, url := range urls {
+			if !urlsFoundInPages[url] {
+				urlsFoundInPages[url] = true
+			}
+		}
+
+		// Insert the page content
+		var pageID int
+		err = tx.QueryRow(r.Context(), "page_insert", urlID).Scan(&pageID)
+		if err != nil {
+			logger.Printf("Failed to insert page content for %s: %v", urlStr, err)
+			continue
+		}
+
+		// Add html to storage
+		err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseURL, supabaseStorageBucket, fmt.Sprintf("%d/%d/page.html", urlID, pageID), string(htmlContent), supabaseAnonKey)
+		if err != nil {
+			logger.Printf("Failed to save page content to storage bucket %s for %s: %v", supabaseStorageBucket, urlStr, err)
+			continue
+		} else {
+			// Update the page content with the storage path
+			_, err = tx.Exec(r.Context(), "UPDATE pages SET html_content = $1 WHERE id = $2", fmt.Sprintf("%d/%d/page.html", urlID, pageID), pageID)
+			if err != nil {
+				logger.Printf("Failed to update page content with storage path for %s: %v", urlStr, err)
+				continue
+			}
+		}
+
+		// Mark the URL as scraped
+		_, err = tx.Exec(r.Context(), "UPDATE urls SET scraped = TRUE WHERE id = $1", urlID)
+		if err != nil {
+			logger.Printf("Failed to mark URL %s as scraped: %v", urlStr, err)
+			continue
+		}
+
+		logger.Printf("Successfully scraped and saved: %s", urlStr)
+	}
+}
+
+func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -343,7 +376,7 @@ func HandlePagesWithoutMarkdownContent(logger *log.Logger, pgxConn *pgxpool.Pool
 
 			cleanedMarkdownContent := CleanMarkdown(markdownContent)
 			// Add markdown to storage
-			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.md", urlID, pageID), cleanedMarkdownContent, supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(r.Context(), logger, supabaseURL, supabaseStorageBucket, fmt.Sprintf("%d/%d/page.md", urlID, pageID), cleanedMarkdownContent, supabaseAnonKey)
 			if err != nil {
 				logger.Printf("Failed to save page content to storage for %d: %v", pageID, err)
 				continue

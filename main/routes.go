@@ -30,15 +30,16 @@ func addRoutes(
 	geminiApiKey string,
 	supabaseURL string,
 	supabaseAnonKey string,
+	supabaseStorageBucket string,
 ) {
 	// Documentation Routes
 	mux.HandleFunc("/api/docs/list", loggingMiddleware(logger, handlers.HandleLoadDocPaths(logger, pgxConn)))
-	mux.HandleFunc("/api/docs/content", loggingMiddleware(logger, handlers.HandleLoadDocsContent(logger, pgxConn, supabaseURL)))
-	mux.HandleFunc("/api/docs/pages", loggingMiddleware(logger, handlers.HandleLoadPageContent(logger, pgxConn, supabaseURL)))
+	mux.HandleFunc("/api/docs/content", loggingMiddleware(logger, handlers.HandleLoadDocsContent(logger, pgxConn, supabaseURL, supabaseStorageBucket)))
+	mux.HandleFunc("/api/docs/pages", loggingMiddleware(logger, handlers.HandleLoadPageContent(logger, pgxConn, supabaseURL, supabaseStorageBucket)))
 
 	// Scraping Routes
-	mux.HandleFunc("/api/scraper/raw", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseURL, supabaseAnonKey)))
-	mux.HandleFunc("/api/scraper/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn, supabaseURL, supabaseAnonKey)))
+	mux.HandleFunc("/api/scraper/raw", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket)))
+	mux.HandleFunc("/api/scraper/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket)))
 	mux.HandleFunc("/api/scraper/chunk", loggingMiddleware(logger, handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient)))
 
 	// RAG Routes
@@ -47,5 +48,6 @@ func addRoutes(
 	mux.HandleFunc("/api/rag/query", loggingMiddleware(logger, handlers.HandleRAGQuery(logger, pgxConn, geminiApiKey)))
 
 	// Maintenance Routes
-	mux.HandleFunc("/api/maintenance/cleanup-titles", loggingMiddleware(logger, handlers.HandleUpdatePageTitle(logger, pgxConn, supabaseURL)))
+	mux.HandleFunc("/api/maintenance/cleanup-titles", loggingMiddleware(logger, handlers.HandleUpdatePageTitle(logger, pgxConn, supabaseURL, supabaseStorageBucket)))
+	mux.HandleFunc("/api/maintenance/test-upsert-store-file", loggingMiddleware(logger, handlers.HandleTestUpsertStoreFile(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket)))
 }

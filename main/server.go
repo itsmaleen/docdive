@@ -33,9 +33,10 @@ func Server(
 	geminiApiKey string,
 	supabaseURL string,
 	supabaseAnonKey string,
+	supabaseStorageBucket string,
 ) http.Handler {
 	mux := http.NewServeMux()
-	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseURL, supabaseAnonKey)
+	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseURL, supabaseAnonKey, supabaseStorageBucket)
 
 	var handler http.Handler = mux
 	// Add CORS middleware

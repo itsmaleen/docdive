@@ -82,8 +82,12 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 	if supabaseAnonKey == "" {
 		return fmt.Errorf("SUPABASE_ANON_KEY must be set")
 	}
+	supabaseStorageBucket := getenv("SUPABSE_STORAGE_BUCKET")
+	if supabaseStorageBucket == "" {
+		supabaseStorageBucket = "pages"
+	}
 
-	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey, supabaseURL, supabaseAnonKey)
+	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey, supabaseURL, supabaseAnonKey, supabaseStorageBucket)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("0.0.0.0", "8080"),
