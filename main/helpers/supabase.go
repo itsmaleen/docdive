@@ -24,6 +24,7 @@ func SaveFileToStorageFromLocalFile(ctx context.Context, logger *log.Logger, sup
 	// Set the required headers
 	req.Header.Set("apikey", anonKey)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", anonKey))
+	req.Header.Set("x-upsert", "true")
 
 	// Create an HTTP client and send the request
 	httpClient := &http.Client{}
@@ -62,4 +63,30 @@ func GetFileContentFromStorage(logger *log.Logger, supabaseURL string, bucketNam
 	logger.Printf("Got content for %s", path)
 
 	return string(content), nil
+}
+
+func DeleteFileFromStorage(logger *log.Logger, supabaseURL string, bucketName string, path string, anonKey string) error {
+	url := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", supabaseURL, bucketName, path)
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	req.Header.Set("apikey", anonKey)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", anonKey))
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send HTTP request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to delete file: status code %d", resp.StatusCode)
+	}
+
+	logger.Printf("Successfully deleted file %s from Supabase storage bucket %s", path, bucketName)
+
+	return nil
 }

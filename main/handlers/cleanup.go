@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Println("Moving HTML content to storage")
 
@@ -32,7 +32,7 @@ func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, s
 			}
 
 			// save the html content to the storage
-			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.html", urlId, id), htmlContent, supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, supabaseStorageBucket, fmt.Sprintf("%d/%d/page.html", urlId, id), htmlContent, supabaseAnonKey)
 			if err != nil {
 				logger.Println("Error saving HTML content:", err)
 			} else {
@@ -46,7 +46,7 @@ func HandleMoveHTMLContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, s
 	}
 }
 
-func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string) http.HandlerFunc {
+func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Println("Moving HTML content to storage")
 
@@ -68,7 +68,7 @@ func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Poo
 			}
 
 			// save the html content to the storage
-			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, "pages", fmt.Sprintf("%d/%d/page.md", urlId, id), markdownContent, supabaseAnonKey)
+			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, supabaseStorageBucket, fmt.Sprintf("%d/%d/page.md", urlId, id), markdownContent, supabaseAnonKey)
 			if err != nil {
 				logger.Println("Error saving markdown content:", err)
 			} else {
@@ -114,7 +114,7 @@ func HandleUpdatePageContentFields(logger *log.Logger, pgxConn *pgxpool.Pool) ht
 	}
 }
 
-func HandleUpdatePageTitle(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string) http.HandlerFunc {
+func HandleUpdatePageTitle(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Println("Updating page titles from HTML content")
 
@@ -138,7 +138,7 @@ func HandleUpdatePageTitle(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseUR
 				continue
 			}
 
-			htmlContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, "pages", path)
+			htmlContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, supabaseStorageBucket, path)
 			if err != nil {
 				logger.Println("Error getting content:", err)
 				updateErrors = append(updateErrors, err)
@@ -161,5 +161,23 @@ func HandleUpdatePageTitle(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseUR
 			return
 		}
 		helpers.Encode(w, r, http.StatusOK, "Page titles updated successfully")
+	}
+}
+
+func HandleTestUpsertStoreFile(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Println("Testing upsert store file")
+
+		path := "page.html"
+		content := "test"
+
+		err := helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, supabaseStorageBucket, path, content, supabaseAnonKey)
+		if err != nil {
+			logger.Println("Error saving file:", err)
+			helpers.Encode(w, r, http.StatusInternalServerError, "Error saving file")
+			return
+		}
+
+		helpers.Encode(w, r, http.StatusOK, "File saved successfully")
 	}
 }

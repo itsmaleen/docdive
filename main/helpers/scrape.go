@@ -1,10 +1,17 @@
 package helpers
 
 import (
+	"encoding/xml"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/itsmaleen/tech-doc-processor/types"
 	"golang.org/x/net/html"
 )
 
@@ -151,4 +158,135 @@ func GetHTMLFromMarkdown(markdown string) string {
 	}
 
 	return html.String()
+}
+
+func GetURLsFromHTML(logger *log.Logger, htmlContent string, baseURL string) []string {
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		logger.Printf("Failed to parse HTML: %v", err)
+		return []string{}
+	}
+	// Double check that the baseURL doesn't already have a trailing slash
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL = baseURL + "/"
+	}
+
+	var urls []string
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if attr.Key == "href" {
+					url := attr.Val
+					// Remove fragment (everything after #)
+					if idx := strings.Index(url, "#"); idx != -1 {
+						url = url[:idx]
+					}
+					// Remove query parameters (everything after ?)
+					if idx := strings.Index(url, "?"); idx != -1 {
+						url = url[:idx]
+					}
+
+					// Skip if URL already has a protocol or is empty
+					if strings.HasPrefix(url, "http") || url == "" {
+						logger.Printf("Skipping URL - has protocol or is empty")
+						continue
+					}
+
+					// Add baseURL for relative paths
+					if strings.HasPrefix(url, "/") {
+						url = baseURL + url
+					} else if !strings.Contains(url, "://") {
+						url = baseURL + url
+					}
+					urls = append(urls, url)
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
+	return urls
+}
+
+func GetUrlsFromSitemap(logger *log.Logger, parsedURL *url.URL) ([]string, error) {
+	// Construct the sitemap URL
+	sitemapURL := fmt.Sprintf("%s://%s/sitemap.xml", parsedURL.Scheme, parsedURL.Host)
+	logger.Printf("Fetching sitemap from: %s", sitemapURL)
+
+	// Fetch the sitemap
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Get(sitemapURL)
+	if err != nil {
+		logger.Printf("Failed to fetch sitemap: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the sitemap content
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Printf("Failed to read sitemap: %v", err)
+		return nil, err
+	}
+
+	var urls []string
+	if strings.Contains(string(body), "<sitemapindex") {
+		// This is a sitemap index
+		var sitemapIndex types.SitemapIndex
+		err = xml.Unmarshal(body, &sitemapIndex)
+		if err != nil {
+			logger.Printf("Failed to parse sitemap index: %v", err)
+			return nil, err
+		}
+
+		// Process each sitemap in the index
+		for _, sitemap := range sitemapIndex.Sitemaps {
+			// Fetch the individual sitemap
+			sitemapResp, err := client.Get(sitemap.Loc)
+			if err != nil {
+				logger.Printf("Failed to fetch sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			sitemapBody, err := io.ReadAll(sitemapResp.Body)
+			sitemapResp.Body.Close()
+			if err != nil {
+				logger.Printf("Failed to read sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			// Parse the individual sitemap
+			var urlSet types.URLSet
+			err = xml.Unmarshal(sitemapBody, &urlSet)
+			if err != nil {
+				logger.Printf("Failed to parse sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			// Extract URLs from the sitemap
+			for _, u := range urlSet.URLs {
+				urls = append(urls, u.Loc)
+			}
+		}
+	} else {
+		// This is a regular sitemap
+		var urlSet types.URLSet
+		err = xml.Unmarshal(body, &urlSet)
+		if err != nil {
+			logger.Printf("Failed to parse sitemap: %v", err)
+			logger.Printf("Sitemap content: %s", string(body))
+			return nil, err
+		}
+
+		// Extract URLs from the sitemap
+		for _, u := range urlSet.URLs {
+			urls = append(urls, u.Loc)
+		}
+	}
+	return urls, nil
 }
