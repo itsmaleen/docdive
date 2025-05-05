@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/mendableai/firecrawl-go"
 )
 
 func main() {
@@ -87,7 +89,23 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 		supabaseStorageBucket = "pages"
 	}
 
-	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey, supabaseURL, supabaseAnonKey, supabaseStorageBucket)
+	if getenv("FIRECRAWL_API_KEY") == "" {
+		return fmt.Errorf("FIRECRAWL_API_KEY must be set")
+	}
+	l.Println("FIRECRAWL_API_KEY: ", getenv("FIRECRAWL_API_KEY"))
+
+	firecrawlClient, err := firecrawl.NewFirecrawlApp(getenv("FIRECRAWL_API_KEY"), "https://api.firecrawl.dev")
+	if err != nil {
+		l.Printf("error creating firecrawl client: %v\n", err)
+		return err
+	}
+
+	backendURL := getenv("BACKEND_URL")
+	if backendURL == "" {
+		return fmt.Errorf("BACKEND_URL must be set")
+	}
+
+	srv := Server(l, pgsqlConnection, ragToolsService.Client, geminiApiKey, supabaseURL, supabaseAnonKey, supabaseStorageBucket, firecrawlClient, backendURL)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort("0.0.0.0", "8080"),

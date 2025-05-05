@@ -1,11 +1,17 @@
 package helpers
 
 import (
+	"encoding/xml"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/itsmaleen/tech-doc-processor/types"
 	"golang.org/x/net/html"
 )
 
@@ -203,4 +209,84 @@ func GetURLsFromHTML(logger *log.Logger, htmlContent string, baseURL string) []s
 	}
 	f(doc)
 	return urls
+}
+
+func GetUrlsFromSitemap(logger *log.Logger, parsedURL *url.URL) ([]string, error) {
+	// Construct the sitemap URL
+	sitemapURL := fmt.Sprintf("%s://%s/sitemap.xml", parsedURL.Scheme, parsedURL.Host)
+	logger.Printf("Fetching sitemap from: %s", sitemapURL)
+
+	// Fetch the sitemap
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Get(sitemapURL)
+	if err != nil {
+		logger.Printf("Failed to fetch sitemap: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the sitemap content
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Printf("Failed to read sitemap: %v", err)
+		return nil, err
+	}
+
+	var urls []string
+	if strings.Contains(string(body), "<sitemapindex") {
+		// This is a sitemap index
+		var sitemapIndex types.SitemapIndex
+		err = xml.Unmarshal(body, &sitemapIndex)
+		if err != nil {
+			logger.Printf("Failed to parse sitemap index: %v", err)
+			return nil, err
+		}
+
+		// Process each sitemap in the index
+		for _, sitemap := range sitemapIndex.Sitemaps {
+			// Fetch the individual sitemap
+			sitemapResp, err := client.Get(sitemap.Loc)
+			if err != nil {
+				logger.Printf("Failed to fetch sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			sitemapBody, err := io.ReadAll(sitemapResp.Body)
+			sitemapResp.Body.Close()
+			if err != nil {
+				logger.Printf("Failed to read sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			// Parse the individual sitemap
+			var urlSet types.URLSet
+			err = xml.Unmarshal(sitemapBody, &urlSet)
+			if err != nil {
+				logger.Printf("Failed to parse sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			// Extract URLs from the sitemap
+			for _, u := range urlSet.URLs {
+				urls = append(urls, u.Loc)
+			}
+		}
+	} else {
+		// This is a regular sitemap
+		var urlSet types.URLSet
+		err = xml.Unmarshal(body, &urlSet)
+		if err != nil {
+			logger.Printf("Failed to parse sitemap: %v", err)
+			logger.Printf("Sitemap content: %s", string(body))
+			return nil, err
+		}
+
+		// Extract URLs from the sitemap
+		for _, u := range urlSet.URLs {
+			urls = append(urls, u.Loc)
+		}
+	}
+	return urls, nil
 }

@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/itsmaleen/tech-doc-processor/proto/rag-tools"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mendableai/firecrawl-go"
 )
 
 // corsMiddleware adds CORS headers to allow requests from specified origins
@@ -34,9 +35,11 @@ func Server(
 	supabaseURL string,
 	supabaseAnonKey string,
 	supabaseStorageBucket string,
+	firecrawlClient *firecrawl.FirecrawlApp,
+	backendURL string,
 ) http.Handler {
 	mux := http.NewServeMux()
-	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseURL, supabaseAnonKey, supabaseStorageBucket)
+	addRoutes(mux, logger, pgxConn, ragToolsServiceClient, geminiApiKey, supabaseURL, supabaseAnonKey, supabaseStorageBucket, firecrawlClient, backendURL)
 
 	var handler http.Handler = mux
 	// Add CORS middleware

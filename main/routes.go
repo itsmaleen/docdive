@@ -8,6 +8,7 @@ import (
 	"github.com/itsmaleen/tech-doc-processor/handlers"
 	pb "github.com/itsmaleen/tech-doc-processor/proto/rag-tools"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mendableai/firecrawl-go"
 )
 
 // loggingMiddleware wraps an http.HandlerFunc with request logging
@@ -31,6 +32,8 @@ func addRoutes(
 	supabaseURL string,
 	supabaseAnonKey string,
 	supabaseStorageBucket string,
+	firecrawlClient *firecrawl.FirecrawlApp,
+	backendURL string,
 ) {
 	// Documentation Routes
 	mux.HandleFunc("/api/docs/list", loggingMiddleware(logger, handlers.HandleLoadDocPaths(logger, pgxConn)))
@@ -38,9 +41,11 @@ func addRoutes(
 	mux.HandleFunc("/api/docs/pages", loggingMiddleware(logger, handlers.HandleLoadPageContent(logger, pgxConn, supabaseURL, supabaseStorageBucket)))
 
 	// Scraping Routes
-	mux.HandleFunc("/api/scraper/raw", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket)))
+	mux.HandleFunc("/api/scraper/raw", loggingMiddleware(logger, handlers.HandleScrapeDocsRaw(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket, firecrawlClient)))
 	mux.HandleFunc("/api/scraper/markdown", loggingMiddleware(logger, handlers.HandlePagesWithoutMarkdownContent(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket)))
 	mux.HandleFunc("/api/scraper/chunk", loggingMiddleware(logger, handlers.HandleChunkingUnProcessedPages(logger, pgxConn, ragToolsServiceClient)))
+	mux.HandleFunc("/api/scraper/firecrawl", loggingMiddleware(logger, handlers.HandleStartFirecrawlAsyncCrawl(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket, firecrawlClient, backendURL)))
+	mux.HandleFunc("/api/scraper/firecrawl/webhook", loggingMiddleware(logger, handlers.HandleFirecrawlWebhook(logger, pgxConn, supabaseURL, supabaseAnonKey, supabaseStorageBucket, firecrawlClient)))
 
 	// RAG Routes
 	mux.HandleFunc("/api/rag/embeddings", loggingMiddleware(logger, handlers.HandleSaveEmbeddings(logger, pgxConn, geminiApiKey)))
