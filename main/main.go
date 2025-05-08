@@ -92,7 +92,6 @@ func run(ctx context.Context, args []string, getenv func(string) string) error {
 	if getenv("FIRECRAWL_API_KEY") == "" {
 		return fmt.Errorf("FIRECRAWL_API_KEY must be set")
 	}
-	l.Println("FIRECRAWL_API_KEY: ", getenv("FIRECRAWL_API_KEY"))
 
 	firecrawlClient, err := firecrawl.NewFirecrawlApp(getenv("FIRECRAWL_API_KEY"), "https://api.firecrawl.dev")
 	if err != nil {

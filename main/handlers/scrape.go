@@ -25,6 +25,223 @@ import (
 	"github.com/itsmaleen/tech-doc-processor/helpers"
 )
 
+func HandleSaveSitemapURLs(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Printf("Saving sitemap URLs")
+
+		// Get the url from the request
+		inputURL := r.FormValue("url")
+		if inputURL == "" {
+			logger.Printf("URL not found in request")
+			http.Error(w, "URL not found in request", http.StatusBadRequest)
+			return
+		}
+
+		// Parse the URL to get the base domain
+		parsedURL, err := url.Parse(inputURL)
+		if err != nil {
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			return
+		}
+		// First, insert the documentation source
+		sourceID, err := helpers.GetOrCreateSource(r.Context(), pgxConn, inputURL, parsedURL.Host)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get or create source: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Get the sitemap
+		urls, err := helpers.GetURLsFromSitemap(logger, parsedURL)
+		if err != nil {
+			logger.Printf("Failed to get sitemap: %v", err)
+			http.Error(w, "Failed to get sitemap", http.StatusInternalServerError)
+			return
+		}
+
+		logger.Printf("Found %d URLs in sitemap", len(urls))
+
+		// Save the urls to the database
+		for _, url := range urls {
+			_, err = pgxConn.Exec(r.Context(), "INSERT INTO urls (source_id, url) VALUES ($1, $2)", sourceID, url)
+			if err != nil {
+				logger.Printf("Failed to save url: %v", err)
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Saved %d URLs in sitemap", len(urls))
+	}
+}
+
+func HandleScrapeURLsUsingJina(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Printf("Scraping URLs using Jina")
+
+		// Parse the request body to get the URL
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Failed to parse form", http.StatusBadRequest)
+			return
+		}
+
+		sourceURL := r.FormValue("url")
+		if sourceURL == "" {
+			http.Error(w, "URL is required", http.StatusBadRequest)
+			return
+		}
+
+		// Parse the URL to get the base domain
+		parsedURL, err := url.Parse(sourceURL)
+		if err != nil {
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			return
+		}
+
+		sourceID, err := helpers.GetOrCreateSource(r.Context(), pgxConn, sourceURL, parsedURL.Host)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get or create source: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		uniqueURLs := make(map[string]bool)
+
+		// Get urls from database
+		urls := make(map[int]string)
+		rows, err := pgxConn.Query(r.Context(), "SELECT id, url FROM urls WHERE source_id = $1 AND scraped = FALSE", sourceID)
+		if err != nil {
+			logger.Printf("Failed to get urls: %v", err)
+			http.Error(w, "Failed to get urls", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var urlID int
+			var url string
+			err = rows.Scan(&urlID, &url)
+			if err != nil {
+				logger.Printf("Failed to scan url: %v", err)
+				http.Error(w, "Failed to scan url", http.StatusInternalServerError)
+				return
+			}
+			urls[urlID] = url
+			uniqueURLs[url] = true
+		}
+
+		logger.Printf("Found %d URLs in database", len(urls))
+
+		// Create a map of time.Time (precise to the minute) to int as a way to track rate limiting
+		rateLimitedURLs := make(map[time.Time]int)
+		rateLimit := 20
+		rateLimitWindow := time.Minute
+
+		// Scrape the urls
+		for urlID, urlToScrape := range urls {
+			logger.Printf("Scraping URL: %d", urlID)
+
+			// Check if the url has been rate limited
+			now := time.Now()
+			minute := now.Truncate(rateLimitWindow)
+			if rateLimitedURLs[minute] > rateLimit {
+				// Wait for the rate limit window to pass
+				time.Sleep(rateLimitWindow)
+			}
+
+			markdown, err := helpers.GetMarkdownUsingJinaReader(logger, urlToScrape)
+			if err != nil {
+				logger.Printf("Failed to get markdown: %v", err)
+				continue
+			}
+
+			title, err := helpers.GetTitleFromJinaMarkdown(logger, markdown)
+			if err != nil {
+				logger.Printf("Failed to get title: %v\n%s", err, markdown)
+				continue
+			}
+
+			rateLimitedURLs[minute]++
+
+			// Save the markdown to the database
+			_, err = pgxConn.Exec(r.Context(), "INSERT INTO pages (url_id, markdown_content, title) VALUES ($1, $2, $3)", urlID, markdown, title)
+			if err != nil {
+				logger.Printf("Failed to save markdown: %v", err)
+				http.Error(w, "Failed to save markdown", http.StatusInternalServerError)
+				return
+			}
+
+			// Get urls from the markdown
+			urls, err := helpers.GetURLsFromMarkdown(logger, markdown)
+			if err != nil {
+				logger.Printf("Failed to get urls from markdown: %v", err)
+				http.Error(w, "Failed to get urls from markdown", http.StatusInternalServerError)
+				return
+			}
+
+			logger.Printf("Found %d urls in markdown", len(urls))
+
+			for _, foundURL := range urls {
+				// Check if the url is under same domain as the source url
+				parsedFoundURL, err := url.Parse(foundURL)
+				if err != nil {
+					logger.Printf("Failed to parse found url: %v", err)
+					continue
+				}
+
+				if parsedFoundURL.Host != parsedURL.Host {
+					logger.Printf("Skipping url: %s because it is not under same domain as the source url", foundURL)
+					continue
+				}
+
+				// If url is an image, skip it
+				if strings.HasPrefix(foundURL, "http") && (strings.HasSuffix(foundURL, ".png") || strings.HasSuffix(foundURL, ".jpg") || strings.HasSuffix(foundURL, ".jpeg") || strings.HasSuffix(foundURL, ".gif") || strings.HasSuffix(foundURL, ".svg")) {
+					logger.Printf("Skipping url: %s because it is an image", foundURL)
+					continue
+				} else if strings.HasPrefix(foundURL, "http") && (strings.HasSuffix(foundURL, ".css") || strings.HasSuffix(foundURL, ".js") || strings.HasSuffix(foundURL, ".json") || strings.HasSuffix(foundURL, ".xml") || strings.HasSuffix(foundURL, ".txt")) {
+					logger.Printf("Skipping url: %s because it is a resource file", foundURL)
+					continue
+				}
+
+				// Clean the URL
+				var cleanedURL string
+				if strings.Contains(foundURL, "#") || strings.Contains(foundURL, "?") {
+					cleanedURL = fmt.Sprintf("%s://%s%s", parsedFoundURL.Scheme, parsedFoundURL.Host, parsedFoundURL.Path)
+					if strings.Contains(cleanedURL, " ") {
+						// remove everything after the first space including the space
+						logger.Printf("Removing everything after the first space including the space: %s -> %s", cleanedURL, cleanedURL[:strings.Index(cleanedURL, " ")])
+						cleanedURL = cleanedURL[:strings.Index(cleanedURL, " ")]
+					}
+				} else {
+					cleanedURL = foundURL
+				}
+
+				if uniqueURLs[cleanedURL] {
+					logger.Printf("Skipping url: %s because it is already in the database", cleanedURL)
+					continue
+				}
+
+				logger.Printf("Saving url: %s", cleanedURL)
+				_, err = pgxConn.Exec(r.Context(), "INSERT INTO urls (source_id, url) VALUES ($1, $2)", sourceID, cleanedURL)
+				if err != nil {
+					logger.Printf("Failed to save url: %v", err)
+				}
+
+				uniqueURLs[cleanedURL] = true
+			}
+
+			// Update the url to set scraped to true
+			_, err = pgxConn.Exec(r.Context(), "UPDATE urls SET scraped = TRUE WHERE id = $1", urlID)
+			if err != nil {
+				logger.Printf("Failed to update url scraped status: %v", err)
+				http.Error(w, "Failed to update url scraped status", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Scraped %d URLs", len(uniqueURLs))
+	}
+}
+
 func HandleFirecrawlWebhook(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseAnonKey string, supabaseStorageBucket string, firecrawlClient *firecrawl.FirecrawlApp) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Printf("Firecrawl webhook received")
@@ -210,43 +427,22 @@ func HandleStartFirecrawlAsyncCrawl(logger *log.Logger, pgxConn *pgxpool.Pool, s
 			http.Error(w, "Invalid URL", http.StatusBadRequest)
 			return
 		}
-
 		// First, insert the documentation source
-		var sourceID int
-		err = pgxConn.QueryRow(
-			r.Context(),
-			"INSERT INTO documentation_sources (source_url, source_name) VALUES ($1, $2) RETURNING id",
-			sourceURL,
-			parsedURL.Host,
-		).Scan(&sourceID)
+		sourceID, err := helpers.GetOrCreateSource(r.Context(), pgxConn, sourceURL, parsedURL.Host)
 		if err != nil {
-			// Check if it's a unique constraint violation (source already exists)
-			if strings.Contains(err.Error(), "duplicate key") {
-				// Get the existing source ID
-				err = pgxConn.QueryRow(
-					r.Context(),
-					"SELECT id FROM documentation_sources WHERE source_url = $1",
-					sourceURL,
-				).Scan(&sourceID)
-				if err != nil {
-					http.Error(w, fmt.Sprintf("Failed to get existing source: %v", err), http.StatusInternalServerError)
-					return
-				}
-			} else {
-				http.Error(w, fmt.Sprintf("Failed to insert documentation source: %v", err), http.StatusInternalServerError)
-				return
-			}
+			http.Error(w, fmt.Sprintf("Failed to get or create source: %v", err), http.StatusInternalServerError)
+			return
 		}
 
 		webhookURL := fmt.Sprintf("%s/api/scraper/firecrawl/webhook?source_id=%d", backendURL, sourceID)
 
-		limit := 1
+		// limit := 1
 		crawlParams := &firecrawl.CrawlParams{
 			Webhook: &webhookURL,
 			ScrapeOptions: firecrawl.ScrapeParams{
 				Formats: []string{"html", "markdown"},
 			},
-			Limit: &limit,
+			// Limit: &limit,
 		}
 
 		idempotencyKey := uuid.New().String()
@@ -292,35 +488,14 @@ func HandleScrapeDocsRaw(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL 
 			return
 		}
 
-		// First, insert the documentation source
-		var sourceID int
-		err = pgxConn.QueryRow(
-			r.Context(),
-			"INSERT INTO documentation_sources (source_url, source_name) VALUES ($1, $2) RETURNING id",
-			sourceURL,
-			parsedURL.Host,
-		).Scan(&sourceID)
+		sourceID, err := helpers.GetOrCreateSource(r.Context(), pgxConn, sourceURL, parsedURL.Host)
 		if err != nil {
-			// Check if it's a unique constraint violation (source already exists)
-			if strings.Contains(err.Error(), "duplicate key") {
-				// Get the existing source ID
-				err = pgxConn.QueryRow(
-					r.Context(),
-					"SELECT id FROM documentation_sources WHERE source_url = $1",
-					sourceURL,
-				).Scan(&sourceID)
-				if err != nil {
-					http.Error(w, fmt.Sprintf("Failed to get existing source: %v", err), http.StatusInternalServerError)
-					return
-				}
-			} else {
-				http.Error(w, fmt.Sprintf("Failed to insert documentation source: %v", err), http.StatusInternalServerError)
-				return
-			}
+			http.Error(w, fmt.Sprintf("Failed to get or create source: %v", err), http.StatusInternalServerError)
+			return
 		}
 
 		// Parse the sitemap
-		urls, err := helpers.GetUrlsFromSitemap(logger, parsedURL)
+		urls, err := helpers.GetURLsFromSitemap(logger, parsedURL)
 		useFirecrawl := false
 		if err != nil {
 			logger.Printf("Failed to get URLs from sitemap: %v", err)
@@ -573,7 +748,7 @@ type Chunk struct {
 	CreatedAt time.Time     `json:"created_at"`
 }
 
-func HandleChunkingUnProcessedPages(logger *log.Logger, pgxConn *pgxpool.Pool, ragToolsServiceClient pb.MarkdownChunkerServiceClient) http.HandlerFunc {
+func HandleChunkingUnProcessedPages(logger *log.Logger, pgxConn *pgxpool.Pool, ragToolsServiceClient pb.MarkdownChunkerServiceClient, supabaseURL string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow POST requests
 		if r.Method != http.MethodPost {
@@ -594,12 +769,18 @@ func HandleChunkingUnProcessedPages(logger *log.Logger, pgxConn *pgxpool.Pool, r
 		var pageIDs []int
 		for rows.Next() {
 			var id int
-			var markdownContent string
+			var markdownPath string
 			var url string
-			err = rows.Scan(&id, &markdownContent, &url)
+			err = rows.Scan(&id, &markdownPath, &url)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to scan URL: %v", err), http.StatusInternalServerError)
 				return
+			}
+
+			markdownContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, supabaseStorageBucket, markdownPath)
+			if err != nil {
+				logger.Printf("Failed to read markdown content for %s: %v", url, err)
+				continue
 			}
 
 			chunks, err := ragToolsServiceClient.ChunkMarkdown(r.Context(), &pb.ChunkMarkdownRequest{

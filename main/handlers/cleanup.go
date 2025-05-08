@@ -51,7 +51,7 @@ func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Poo
 		logger.Println("Moving HTML content to storage")
 
 		// get all html content from the database
-		rows, err := pgxConn.Query(context.Background(), "SELECT id, markdown_content, url_id FROM pages")
+		rows, err := pgxConn.Query(context.Background(), "SELECT id, markdown_content, url_id FROM pages WHERE markdown_content not like '%/page.md%'")
 		if err != nil {
 			logger.Println("Error getting markdown content:", err)
 			http.Error(w, "Error getting markdown content", http.StatusInternalServerError)
@@ -78,6 +78,8 @@ func HandleMoveMarkdownContentToStorage(logger *log.Logger, pgxConn *pgxpool.Poo
 					logger.Println("Error updating markdown content:", err)
 				}
 			}
+
+			logger.Printf("Moved markdown content to storage: %d/%d/page.md", urlId, id)
 		}
 	}
 }
