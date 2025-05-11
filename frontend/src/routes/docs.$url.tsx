@@ -1,15 +1,29 @@
-import { ChatInterface } from "@/components/chat-interface";
-import { UrlInputEnhanced } from "@/components/url-input";
-import { createFileRoute } from "@tanstack/react-router";
-import Layout from "@/components/layout";
-import { useEffect, useState } from "react";
 import {
   useDocumentationPathsQuery,
   useDocumentationQuery,
   type DocumentationPage,
 } from "@/api/queries";
-import { EnhancedMarkdownViewer } from "@/components/enhanced-markdown-viewer";
-import { setLoading } from "@/lib/markdown-store";
+import { AppSidebar } from "@/components/documentation-sidebar";
+import { ChatInterface } from "@/components/chat-interface";
+import { DocsViewer } from "@/components/docs-viewer";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbSeparator,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { markdownStore, setLoading } from "@/lib/markdown-store";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { useStore } from "@tanstack/react-store";
 
 export const Route = createFileRoute("/docs/$url")({
   component: RouteComponent,
@@ -29,10 +43,14 @@ function RouteComponent() {
 
   const { data } = useDocumentationQuery(documentationUrl);
 
-  // First use documentationPaths to show the paths / titles
-  // Once data is loaded, use documentation to show the content
+  const isLoading = useStore(markdownStore, (state) => state.isLoading);
 
   const [documentation, setDocumentation] = useState<DocumentationPage[]>([]);
+
+  const currentTitle = useStore(
+    markdownStore,
+    (state) => state.documentationPage?.title
+  );
 
   useEffect(() => {
     if (data) {
@@ -44,23 +62,48 @@ function RouteComponent() {
   }, [data, documentationPaths]);
 
   return (
-    <Layout>
-      <div className="flex flex-col gap-6">
-        <UrlInputEnhanced />
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "350px",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar
+        documentation={documentation}
+        isLoading={isLoading}
+        error={errorPaths}
+      />
+      <SidebarInset>
+        <header className="sticky top-0 flex shrink-0 items-center gap-2 border-b bg-background p-4 z-10">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbLink href="#">{documentationUrl}</BreadcrumbLink>
+              </BreadcrumbItem>
+              {currentTitle && (
+                <>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{currentTitle}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
+        </header>
 
-        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)]">
-          <EnhancedMarkdownViewer
-            documentation={documentation}
-            originalUrl={documentationUrl}
-            className="w-full md:w-2/3"
-            error={errorPaths || undefined}
-          />
-
-          <div className="w-full md:w-1/3">
-            <ChatInterface documentation={documentation} className="flex-1" />
+        <div className="grid auto-rows-min gap-4 md:grid-cols-5">
+          <div className="md:col-span-3 w-full">
+            <DocsViewer error={errorPaths} />
+          </div>
+          <div className="md:col-span-2 sticky top-[73px] h-[calc(100vh-73px)]">
+            <ChatInterface documentation={documentation} />
           </div>
         </div>
-      </div>
-    </Layout>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
