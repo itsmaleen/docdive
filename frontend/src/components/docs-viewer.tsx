@@ -1,23 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-// @ts-ignore
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  vscDarkPlus,
-  oneLight,
-  // @ts-ignore
-} from "react-syntax-highlighter/dist/esm/styles/prism";
 import { markdownStore } from "@/lib/markdown-store";
 import { useStore } from "@tanstack/react-store";
 import { generateSlug, stringToHTMLCollection } from "@/lib/utils";
+import { Code } from "./code";
 
 interface DocsViewerProps {
   error: Error | null;
 }
 
 export function DocsViewer({ error }: DocsViewerProps) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [, setIsDarkMode] = useState(false);
   const viewerRef = useRef<HTMLDivElement>(null);
 
   const markdown = useStore(
@@ -268,14 +262,7 @@ export function DocsViewer({ error }: DocsViewerProps) {
             const match = /language-(\w+)/.exec(className || "");
             const isInline = !match;
             return !isInline && match ? (
-              <SyntaxHighlighter
-                style={isDarkMode ? vscDarkPlus : oneLight}
-                language={match[1]}
-                PreTag="div"
-                className="rounded-md my-4"
-              >
-                {String(children).replace(/\n$/, "")}
-              </SyntaxHighlighter>
+              <Code>{String(children).replace(/\n$/, "")}</Code>
             ) : (
               <code
                 className={`${

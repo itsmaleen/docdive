@@ -1,13 +1,7 @@
 import { BotIcon, UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-// @ts-ignore
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  vscDarkPlus,
-  oneLight,
-  // @ts-ignore
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Code } from "./code";
 
 interface MessageItemProps {
   message: {
@@ -20,7 +14,7 @@ interface MessageItemProps {
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [, setIsDarkMode] = useState(false);
 
   // Check for dark mode
   useEffect(() => {
@@ -119,32 +113,8 @@ export function MessageItem({ message }: MessageItemProps) {
                   {...props}
                 />
               ),
-              code: ({ node, className, children, ...props }: any) => {
-                const containsLanguageMatch = /language-(\w+)/.exec(
-                  className || ""
-                );
-                const isInline = !containsLanguageMatch;
-                return containsLanguageMatch ? (
-                  <SyntaxHighlighter
-                    style={isDarkMode ? vscDarkPlus : oneLight}
-                    language={containsLanguageMatch[1]}
-                    PreTag="div"
-                    className="rounded-md my-4"
-                  >
-                    {String(children).replace(/\n$/, "")}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code
-                    className={`${
-                      isInline
-                        ? "bg-muted px-1.5 py-0.5 rounded text-sm font-mono"
-                        : "block bg-muted p-3 rounded-md my-4 overflow-x-auto"
-                    } whitespace-pre-wrap block`}
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                );
+              code: ({ children }: any) => {
+                return <Code>{String(children).replace(/\n$/, "")}</Code>;
               },
               table: ({ node, ...props }) => (
                 <div className="overflow-x-auto my-4 max-w-full">
