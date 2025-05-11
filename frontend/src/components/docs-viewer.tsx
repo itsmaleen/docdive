@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 // @ts-ignore
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";

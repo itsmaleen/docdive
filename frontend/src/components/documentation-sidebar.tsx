@@ -1,4 +1,3 @@
-import * as React from "react";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -11,7 +10,7 @@ import {
   useDocumentationPageMutation,
   type DocumentationPage,
 } from "@/api/queries";
-import { setDocumentationPage } from "@/lib/markdown-store";
+import { setDocumentationPage, setLoadingContent } from "@/lib/markdown-store";
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import { NavUser } from "./nav-user";
 import { Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 
 interface DocumentationSidebarProps {
   documentation: DocumentationPage[] | undefined;
@@ -57,24 +57,27 @@ export function AppSidebar({
   error,
   className = "",
   ...props
-}: DocumentationSidebarProps & React.ComponentProps<typeof Sidebar>) {
+}: DocumentationSidebarProps & ComponentProps<typeof Sidebar>) {
   // Note: I'm using state to show active item.
   // IRL you should use the url/router.
-  const [activeItem, setActiveItem] = React.useState(data.navMain[0]);
+  const [activeItem, setActiveItem] = useState(data.navMain[0]);
   const { setOpen } = useSidebar();
 
   const { mutate: fetchDocumentationPage, isPending: isFetching } =
     useDocumentationPageMutation();
 
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [searchResults, setSearchResults] = React.useState<number[]>([]);
-  const [currentResultIndex, setCurrentResultIndex] =
-    React.useState<number>(-1);
+  useEffect(() => {
+    setLoadingContent(isFetching);
+  }, [isFetching]);
 
-  const resultRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<number[]>([]);
+  const [currentResultIndex, setCurrentResultIndex] = useState<number>(-1);
+
+  const resultRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Search through documentation titles
-  React.useEffect(() => {
+  useEffect(() => {
     if (!documentation) return;
 
     const results: number[] = [];
@@ -103,7 +106,7 @@ export function AppSidebar({
   };
 
   // Scroll to the current search result
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentResultIndex >= 0 && currentResultIndex < searchResults.length) {
       const resultIndex = searchResults[currentResultIndex];
       const element = resultRefs.current.get(resultIndex);

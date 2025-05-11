@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { DiagramSection } from "./diagram-section";
 import { MessageItem } from "./message-item";
 import {
+  useDocumentationPageMutation,
   useRAGAnswerMutation,
   useRAGChunksMutation,
   type DocumentationPage,
@@ -12,7 +13,12 @@ import {
 import type { Message } from "@/lib/chat-api";
 import { addMessage, chatStore } from "@/lib/chat-store";
 import { useStore } from "@tanstack/react-store";
-import { setActiveSection, setDocumentationPage } from "@/lib/markdown-store";
+import {
+  setActiveSection,
+  setDocumentationPage,
+  setLoadingContent,
+} from "@/lib/markdown-store";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface ChatInterfaceProps {
   documentation: DocumentationPage[] | undefined;
@@ -27,6 +33,13 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
 
   const { mutate: fetchRAGChunks } = useRAGChunksMutation();
   const { mutate: sendMessage, isPending: isSending } = useRAGAnswerMutation();
+
+  const { mutate: fetchDocumentationPage, isPending: isFetching } =
+    useDocumentationPageMutation();
+
+  useEffect(() => {
+    setLoadingContent(isFetching);
+  }, [isFetching]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -65,7 +78,7 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
           Chat Interface
         </h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <ScrollArea className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <Fragment key={message.id}>
             <MessageItem message={message} />
@@ -84,10 +97,14 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
                         (page) => page.url === source.url
                       );
                       if (page) {
-                        setDocumentationPage(page);
-                        setTimeout(() => {
-                          setActiveSection(source.text);
-                        }, 200);
+                        if (!page.markdown) {
+                          fetchDocumentationPage(page.id);
+                        } else {
+                          setDocumentationPage(page);
+                          setTimeout(() => {
+                            setActiveSection(source.text);
+                          }, 200);
+                        }
                       } else {
                         console.log("no page found");
                         console.log(documentation);
@@ -95,8 +112,7 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
                     }}
                   >
                     <LinkIcon className="h-3 w-3 mr-1" />
-
-                    {sourceIndex}
+                    {sourceIndex + 1}
                   </Button>
                 ))}
               </div>
@@ -133,7 +149,7 @@ export function ChatInterface({ documentation }: ChatInterfaceProps) {
         )}
 
         <div ref={messagesEndRef} />
-      </div>
+      </ScrollArea>
 
       <div className="border-t border-border p-3">
         <form onSubmit={handleSubmit} className="flex gap-2">
