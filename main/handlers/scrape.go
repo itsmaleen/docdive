@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,6 +55,13 @@ func HandleSaveSitemapURLs(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseUR
 		urls, err := helpers.GetURLsFromSitemap(logger, parsedURL)
 		if err != nil {
 			logger.Printf("Failed to get sitemap: %v", err)
+
+			// Save the base url to the database
+			_, err = pgxConn.Exec(r.Context(), "INSERT INTO urls (source_id, url) VALUES ($1, $2)", sourceID, inputURL)
+			if err != nil {
+				logger.Printf("Failed to save url: %v", err)
+			}
+
 			http.Error(w, "Failed to get sitemap", http.StatusInternalServerError)
 			return
 		}
@@ -159,13 +167,25 @@ func HandleScrapeURLsUsingJina(logger *log.Logger, pgxConn *pgxpool.Pool, supaba
 				continue
 			}
 
+			var pageID int
+			err = pgxConn.QueryRow(r.Context(), "INSERT INTO pages (url_id, title) VALUES ($1, $2) RETURNING id", urlID, title).Scan(&pageID)
+
+
+			markdownPath := fmt.Sprintf("%d/%d/page.md", urlID, pageID)
+
+			err = helpers.SaveFileToStorageFromLocalFile(context.Background(), logger, supabaseURL, supabaseStorageBucket, markdownPath, markdown, supabaseAnonKey)
+			if err != nil {
+				logger.Printf("Failed to save markdown file")
+				continue
+			}
+
 			rateLimitedURLs[minute]++
 
-			// Save the markdown to the database
-			_, err = pgxConn.Exec(r.Context(), "INSERT INTO pages (url_id, markdown_content, title) VALUES ($1, $2, $3)", urlID, markdown, title)
+			// Update the markdown to the database
+			_, err = pgxConn.Exec(r.Context(), "UPDATE pages SET markdown_content = $1 WHERE id = $2", markdownPath, pageID)
 			if err != nil {
-				logger.Printf("Failed to save markdown: %v", err)
-				http.Error(w, "Failed to save markdown", http.StatusInternalServerError)
+				logger.Printf("Failed to update markdown: %v", err)
+				http.Error(w, "Failed to update markdown", http.StatusInternalServerError)
 				return
 			}
 

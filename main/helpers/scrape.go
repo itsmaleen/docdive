@@ -308,7 +308,7 @@ func GetURLsFromSitemap(logger *log.Logger, parsedURL *url.URL) ([]string, error
 		err = xml.Unmarshal(body, &urlSet)
 		if err != nil {
 			logger.Printf("Failed to parse sitemap: %v", err)
-			logger.Printf("Sitemap content: %s", string(body))
+			// logger.Printf("Sitemap content: %s", string(body))
 			return nil, err
 		}
 
