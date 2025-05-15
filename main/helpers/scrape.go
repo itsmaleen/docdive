@@ -1,12 +1,48 @@
 package helpers
 
 import (
+	"context"
+	"encoding/xml"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/itsmaleen/tech-doc-processor/types"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/net/html"
 )
+
+func GetOrCreateSource(ctx context.Context, pgxConn *pgxpool.Pool, inputURL string, sourceName string) (int, error) {
+	var sourceID int
+	err := pgxConn.QueryRow(
+		ctx,
+		"INSERT INTO documentation_sources (source_url, source_name) VALUES ($1, $2) RETURNING id",
+		inputURL,
+		sourceName,
+	).Scan(&sourceID)
+	if err != nil {
+		// Check if it's a unique constraint violation (source already exists)
+		if strings.Contains(err.Error(), "duplicate key") {
+			// Get the existing source ID
+			err = pgxConn.QueryRow(
+				ctx,
+				"SELECT id FROM documentation_sources WHERE source_url = $1",
+				inputURL,
+			).Scan(&sourceID)
+			if err != nil {
+				return 0, fmt.Errorf("failed to get existing source: %v", err)
+			}
+		} else {
+			return 0, fmt.Errorf("failed to insert documentation source: %v", err)
+		}
+	}
+	return sourceID, nil
+}
 
 func GetTitleFromHTML(htmlContent string) string {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
@@ -151,4 +187,196 @@ func GetHTMLFromMarkdown(markdown string) string {
 	}
 
 	return html.String()
+}
+
+func GetURLsFromHTML(logger *log.Logger, htmlContent string, baseURL string) []string {
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		logger.Printf("Failed to parse HTML: %v", err)
+		return []string{}
+	}
+	// Double check that the baseURL doesn't already have a trailing slash
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL = baseURL + "/"
+	}
+
+	var urls []string
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if attr.Key == "href" {
+					url := attr.Val
+					// Remove fragment (everything after #)
+					if idx := strings.Index(url, "#"); idx != -1 {
+						url = url[:idx]
+					}
+					// Remove query parameters (everything after ?)
+					if idx := strings.Index(url, "?"); idx != -1 {
+						url = url[:idx]
+					}
+
+					// Skip if URL already has a protocol or is empty
+					if strings.HasPrefix(url, "http") || url == "" {
+						logger.Printf("Skipping URL - has protocol or is empty")
+						continue
+					}
+
+					// Add baseURL for relative paths
+					if strings.HasPrefix(url, "/") {
+						url = baseURL + url
+					} else if !strings.Contains(url, "://") {
+						url = baseURL + url
+					}
+					urls = append(urls, url)
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
+	return urls
+}
+
+func GetURLsFromSitemap(logger *log.Logger, parsedURL *url.URL) ([]string, error) {
+	// Construct the sitemap URL
+	sitemapURL := fmt.Sprintf("%s://%s/sitemap.xml", parsedURL.Scheme, parsedURL.Host)
+	logger.Printf("Fetching sitemap from: %s", sitemapURL)
+
+	// Fetch the sitemap
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Get(sitemapURL)
+	if err != nil {
+		logger.Printf("Failed to fetch sitemap: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the sitemap content
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Printf("Failed to read sitemap: %v", err)
+		return nil, err
+	}
+
+	var urls []string
+	if strings.Contains(string(body), "<sitemapindex") {
+		// This is a sitemap index
+		var sitemapIndex types.SitemapIndex
+		err = xml.Unmarshal(body, &sitemapIndex)
+		if err != nil {
+			logger.Printf("Failed to parse sitemap index: %v", err)
+			return nil, err
+		}
+
+		// Process each sitemap in the index
+		for _, sitemap := range sitemapIndex.Sitemaps {
+			// Fetch the individual sitemap
+			sitemapResp, err := client.Get(sitemap.Loc)
+			if err != nil {
+				logger.Printf("Failed to fetch sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			sitemapBody, err := io.ReadAll(sitemapResp.Body)
+			sitemapResp.Body.Close()
+			if err != nil {
+				logger.Printf("Failed to read sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			// Parse the individual sitemap
+			var urlSet types.URLSet
+			err = xml.Unmarshal(sitemapBody, &urlSet)
+			if err != nil {
+				logger.Printf("Failed to parse sitemap %s: %v", sitemap.Loc, err)
+				continue
+			}
+
+			// Extract URLs from the sitemap
+			for _, u := range urlSet.URLs {
+				urls = append(urls, u.Loc)
+			}
+		}
+	} else {
+		// This is a regular sitemap
+		var urlSet types.URLSet
+		err = xml.Unmarshal(body, &urlSet)
+		if err != nil {
+			logger.Printf("Failed to parse sitemap: %v", err)
+			// logger.Printf("Sitemap content: %s", string(body))
+			return nil, err
+		}
+
+		// Extract URLs from the sitemap
+		for _, u := range urlSet.URLs {
+			urls = append(urls, u.Loc)
+		}
+	}
+	return urls, nil
+}
+
+func GetURLsFromMarkdown(logger *log.Logger, markdown string) ([]string, error) {
+	// Regex to find all urls in the markdown
+	regex := regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+	urls := regex.FindAllStringSubmatch(markdown, -1)
+
+	links := []string{}
+	for _, url := range urls {
+		links = append(links, url[2])
+	}
+
+	return links, nil
+}
+
+func GetMarkdownUsingJinaReader(logger *log.Logger, inputURL string) (string, error) {
+	// Confirm that the url is a valid url
+	_, err := url.Parse(inputURL)
+	if err != nil {
+		return "", err
+	}
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	jinaReaderURL := fmt.Sprintf("https://r.jina.ai/%s", inputURL)
+
+	req, err := http.NewRequest("GET", jinaReaderURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	markdown := string(body)
+
+	// Warning: Target URL returned error 404: Not Found
+	if strings.Contains(markdown, "Warning: Target URL returned error 404: Not Found") {
+		return "", fmt.Errorf("target url returned error 404: not found")
+	}
+
+	return markdown, nil
+}
+
+func GetTitleFromJinaMarkdown(logger *log.Logger, markdown string) (string, error) {
+	// Regex to find the title in the markdown
+	regex := regexp.MustCompile(`Title: (.*)`)
+	title := regex.FindStringSubmatch(markdown)
+	if len(title) == 0 {
+		return "", fmt.Errorf("no title found in markdown")
+	}
+	return title[1], nil
 }

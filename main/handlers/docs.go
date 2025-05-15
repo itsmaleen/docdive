@@ -93,7 +93,7 @@ func HandleLoadDocPaths(logger *log.Logger, pgxConn *pgxpool.Pool) http.HandlerF
 	}
 }
 
-func HandleLoadDocsContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string) http.HandlerFunc {
+func HandleLoadDocsContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow GET requests
 		if r.Method != http.MethodGet {
@@ -129,7 +129,7 @@ func HandleLoadDocsContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseUR
 				return
 			}
 
-			markdownContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, "pages", page.Path)
+			markdownContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, supabaseStorageBucket, page.Path)
 			if err != nil {
 				logger.Printf("Failed to read markdown content: %v", err)
 				http.Error(w, "Failed to read markdown content", http.StatusInternalServerError)
@@ -151,7 +151,7 @@ func HandleLoadDocsContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseUR
 	}
 }
 
-func HandleLoadPageContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string) http.HandlerFunc {
+func HandleLoadPageContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseURL string, supabaseStorageBucket string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Only allow GET requests
 		if r.Method != http.MethodGet {
@@ -176,7 +176,7 @@ func HandleLoadPageContent(logger *log.Logger, pgxConn *pgxpool.Pool, supabaseUR
 			return
 		}
 
-		markdownContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, "pages", page.Path)
+		markdownContent, err := helpers.GetFileContentFromStorage(logger, supabaseURL, supabaseStorageBucket, page.Path)
 		if err != nil {
 			logger.Printf("Failed to read markdown content: %v", err)
 			http.Error(w, "Failed to read markdown content", http.StatusInternalServerError)
